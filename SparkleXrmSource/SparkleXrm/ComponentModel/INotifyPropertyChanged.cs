@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 namespace Xrm.ComponentModel
 {
     public delegate void PropertyChangedEventHandler(object sender, PropertyChangedEventArgs e);
+    public delegate void RecordLoadedEventHandler(object sender);
 
     [Imported]
     [IgnoreNamespace]
@@ -34,12 +35,16 @@ namespace Xrm.ComponentModel
         public string PropertyName;
     }
 
+   
+
     public interface INotifyPropertyChanged
     {
         // Summary:
         //     Occurs when a property value changes.
         event PropertyChangedEventHandler PropertyChanged;
+        event RecordLoadedEventHandler RecordLoaded;
 
         void RaisePropertyChanged(string propertyName);
+        void RaiseRecordLoaded();
     }
 }

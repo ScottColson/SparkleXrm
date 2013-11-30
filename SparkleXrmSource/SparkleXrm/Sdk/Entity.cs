@@ -16,6 +16,8 @@ namespace Xrm.Sdk
         Changed = 2,
         Deleted = 3
     }
+
+    
     public class Entity :INotifyPropertyChanged
     {
         #region Fields
@@ -79,6 +81,8 @@ namespace Xrm.Sdk
                     }
                 }
             }
+
+            this.RaiseRecordLoaded();
         }
 
         private void SetDictionaryValue(string key, object value)
@@ -181,6 +185,12 @@ namespace Xrm.Sdk
                 EntityState = EntityStates.Changed;
         }
 
+        public void RaiseRecordLoaded()
+        {
+            if (RecordLoaded != null)
+                RecordLoaded(this);
+        }
+
         public EntityReference ToEntityReference()
         {
             return new EntityReference(new Guid(this.Id), this.LogicalName, "");
@@ -190,6 +200,7 @@ namespace Xrm.Sdk
 
         #region Events
         public event PropertyChangedEventHandler PropertyChanged;
+        public event RecordLoadedEventHandler RecordLoaded;
         #endregion
     }
 }
