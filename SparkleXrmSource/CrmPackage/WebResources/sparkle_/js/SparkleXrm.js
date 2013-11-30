@@ -148,7 +148,7 @@ Xrm.NumberEx.format = function Xrm_NumberEx$format(value, format) {
     var formattedNumber = '';
     var wholeNumber = Math.floor(Math.abs(value));
     var wholeNumberString = wholeNumber.toString();
-    var decimalPartString = value.toString().substr(wholeNumberString.length + 1);
+    var decimalPartString = value.toString().substr(wholeNumberString.length + 1 + ((value < 0) ? 1 : 0));
     var i = wholeNumberString.length;
     var j = 0;
     while (i > 0) {
@@ -206,7 +206,7 @@ Xrm.NumberEx.getCurrencySymbol = function Xrm_NumberEx$getCurrencySymbol(currenc
     var orgSettings = Xrm.Services.CachedOrganizationService.retrieveMultiple("<fetch distinct='false' no-lock='false' mapping='logical'><entity name='organization'><attribute name='currencydisplayoption' /><attribute name='currencysymbol' /></entity></fetch>");
     var orgSetting = orgSettings.get_entities().get_item(0);
     var currency = Xrm.Services.CachedOrganizationService.retrieve('transactioncurrency', currencyId.toString(), [ 'currencysymbol', 'isocurrencycode' ]);
-    if (!orgSetting.getAttributeValueInt('currencydisplayoption')) {
+    if (!orgSetting.getAttributeValueOptionSet('currencydisplayoption').value) {
         return currency.getAttributeValueString('currencysymbol') + ' ';
     }
     else {
@@ -285,7 +285,7 @@ Xrm.TabItem.prototype = {
     sections: null,
     
     getDisplayState: function Xrm_TabItem$getDisplayState() {
-        return null;
+        return 'expanded';
     },
     
     getLabel: function Xrm_TabItem$getLabel() {
@@ -782,6 +782,9 @@ Xrm.Sdk.DateTimeEx.formatDuration = function Xrm_Sdk_DateTimeEx$formatDuration(t
         if (minutes > 0) {
             Xrm.ArrayEx.add(formatString, '{2}m');
         }
+        if (!days && !hours && !minutes) {
+            Xrm.ArrayEx.add(formatString, '{2}m');
+        }
         return String.format(Xrm.ArrayEx.join(formatString, ' '), days, hours, minutes);
     }
     else {
@@ -1223,6 +1226,10 @@ Xrm.Sdk.Entity.prototype = {
         }
     },
     
+    toEntityReference: function Xrm_Sdk_Entity$toEntityReference() {
+        return new Xrm.Sdk.EntityReference(new Xrm.Sdk.Guid(this.id), this.logicalName, '');
+    },
+    
     add_propertyChanged: function Xrm_Sdk_Entity$add_propertyChanged(value) {
         this.__propertyChanged = ss.Delegate.combine(this.__propertyChanged, value);
     },
@@ -1335,6 +1342,13 @@ Xrm.Sdk.EntityReference.prototype = {
     
     toString: function Xrm_Sdk_EntityReference$toString() {
         return String.format('[EntityReference: {0},{1},{2}]', this.name, this.id, this.logicalName);
+    },
+    
+    toSoap: function Xrm_Sdk_EntityReference$toSoap(NameSpace) {
+        if (NameSpace == null || !NameSpace) {
+            NameSpace = 'a';
+        }
+        return String.format('<{0}:EntityReference><{0}:Id>{1}</{0}:Id><{0}:LogicalName>{2}</{0}:LogicalName><{0}:Name i:nil="true" /></{0}:EntityReference>', NameSpace, this.id.value, this.logicalName);
     }
 }
 
@@ -1398,6 +1412,107 @@ Xrm.Sdk.OrganizationServiceProxy.getUserSettings = function Xrm_Sdk_Organization
     Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring = Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring.replaceAll('/', Xrm.Sdk.OrganizationServiceProxy.userSettings.dateseparator);
     Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring = Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring.replaceAll('MM', 'mm').replaceAll('yyyy', 'UU').replaceAll('yy', 'y').replaceAll('UU', 'yy').replaceAll('M', 'm');
     return Xrm.Sdk.OrganizationServiceProxy.userSettings;
+}
+Xrm.Sdk.OrganizationServiceProxy.doesNNAssociationExist = function Xrm_Sdk_OrganizationServiceProxy$doesNNAssociationExist(relationship, Entity1, Entity2) {
+    var fetchXml = "<fetch mapping='logical'>" + "  <entity name='" + relationship.schemaName + "'>" + '    <all-attributes />' + '    <filter>' + "      <condition attribute='" + Entity1.logicalName + "id' operator='eq' value ='" + Entity1.id.value + "' />" + "      <condition attribute='" + Entity2.logicalName + "id' operator='eq' value='" + Entity2.id.value + "' />" + '    </filter>' + '  </entity>' + '</fetch>';
+    var result = Xrm.Sdk.OrganizationServiceProxy.retrieveMultiple(fetchXml);
+    if (result.get_entities().get_count() > 0) {
+        return true;
+    }
+    return false;
+}
+Xrm.Sdk.OrganizationServiceProxy.associate = function Xrm_Sdk_OrganizationServiceProxy$associate(entityName, entityId, relationship, relatedEntities) {
+    var resultXml = Xrm.Sdk.OrganizationServiceProxy._getResponse(Xrm.Sdk.OrganizationServiceProxy._getAssociateRequest(entityName, entityId, relationship, relatedEntities), 'Execute', null);
+    delete resultXml;
+    resultXml = null;
+}
+Xrm.Sdk.OrganizationServiceProxy.beginAssociate = function Xrm_Sdk_OrganizationServiceProxy$beginAssociate(entityName, entityId, relationship, relatedEntities, callBack) {
+    Xrm.Sdk.OrganizationServiceProxy._getResponse(Xrm.Sdk.OrganizationServiceProxy._getAssociateRequest(entityName, entityId, relationship, relatedEntities), 'Execute', callBack);
+}
+Xrm.Sdk.OrganizationServiceProxy.endAssociate = function Xrm_Sdk_OrganizationServiceProxy$endAssociate(asyncState) {
+    var xmlDocument = asyncState;
+    if (xmlDocument.childNodes != null) {
+    }
+    else {
+        throw new Error(asyncState);
+    }
+}
+Xrm.Sdk.OrganizationServiceProxy._getAssociateRequest = function Xrm_Sdk_OrganizationServiceProxy$_getAssociateRequest(entityName, entityId, relationship, relatedEntities) {
+    var entityReferences = '';
+    var $enum1 = ss.IEnumerator.getEnumerator(relatedEntities);
+    while ($enum1.moveNext()) {
+        var item = $enum1.current;
+        entityReferences += item.toSoap('a');
+    }
+    var xmlSoapBody = '<Execute xmlns="http://schemas.microsoft.com/xrm/2011/Contracts/Services" xmlns:i="http://www.w3.org/2001/XMLSchema-instance">';
+    xmlSoapBody += '      <request i:type="a:AssociateRequest" xmlns:a="http://schemas.microsoft.com/xrm/2011/Contracts">';
+    xmlSoapBody += '        <a:Parameters xmlns:b="http://schemas.datacontract.org/2004/07/System.Collections.Generic">';
+    xmlSoapBody += '          <a:KeyValuePairOfstringanyType>';
+    xmlSoapBody += '            <b:key>Target</b:key>';
+    xmlSoapBody += '            <b:value i:type="a:EntityReference">';
+    xmlSoapBody += '              <a:Id>' + entityId.value + '</a:Id>';
+    xmlSoapBody += '              <a:LogicalName>' + entityName + '</a:LogicalName>';
+    xmlSoapBody += '              <a:Name i:nil="true" />';
+    xmlSoapBody += '            </b:value>';
+    xmlSoapBody += '          </a:KeyValuePairOfstringanyType>';
+    xmlSoapBody += '          <a:KeyValuePairOfstringanyType>';
+    xmlSoapBody += '            <b:key>Relationship</b:key>';
+    xmlSoapBody += '            <b:value i:type="a:Relationship">';
+    xmlSoapBody += '              <a:PrimaryEntityRole i:nil="true" />';
+    xmlSoapBody += '              <a:SchemaName>' + relationship.schemaName + '</a:SchemaName>';
+    xmlSoapBody += '            </b:value>';
+    xmlSoapBody += '          </a:KeyValuePairOfstringanyType>';
+    xmlSoapBody += '          <a:KeyValuePairOfstringanyType>';
+    xmlSoapBody += '            <b:key>RelatedEntities</b:key>';
+    xmlSoapBody += '            <b:value i:type="a:EntityReferenceCollection">' + entityReferences + '</b:value>';
+    xmlSoapBody += '          </a:KeyValuePairOfstringanyType>';
+    xmlSoapBody += '        </a:Parameters>';
+    xmlSoapBody += '        <a:RequestId i:nil="true" />';
+    xmlSoapBody += '        <a:RequestName>Associate</a:RequestName>';
+    xmlSoapBody += '      </request>';
+    xmlSoapBody += '    </Execute>';
+    return xmlSoapBody;
+}
+Xrm.Sdk.OrganizationServiceProxy.disassociate = function Xrm_Sdk_OrganizationServiceProxy$disassociate(entityName, entityId, relationship, relatedEntities) {
+    var resultXml = Xrm.Sdk.OrganizationServiceProxy._getResponse(Xrm.Sdk.OrganizationServiceProxy._getDisassociateRequest(entityName, entityId, relationship, relatedEntities), 'Execute', null);
+    delete resultXml;
+    resultXml = null;
+}
+Xrm.Sdk.OrganizationServiceProxy._getDisassociateRequest = function Xrm_Sdk_OrganizationServiceProxy$_getDisassociateRequest(entityName, entityId, relationship, relatedEntities) {
+    var entityReferences = '';
+    var $enum1 = ss.IEnumerator.getEnumerator(relatedEntities);
+    while ($enum1.moveNext()) {
+        var item = $enum1.current;
+        entityReferences += item.toSoap('a');
+    }
+    var xmlSoapBody = '<Execute xmlns="http://schemas.microsoft.com/xrm/2011/Contracts/Services" xmlns:i="http://www.w3.org/2001/XMLSchema-instance">';
+    xmlSoapBody += '      <request i:type="a:DisassociateRequest" xmlns:a="http://schemas.microsoft.com/xrm/2011/Contracts">';
+    xmlSoapBody += '        <a:Parameters xmlns:b="http://schemas.datacontract.org/2004/07/System.Collections.Generic">';
+    xmlSoapBody += '          <a:KeyValuePairOfstringanyType>';
+    xmlSoapBody += '            <b:key>Target</b:key>';
+    xmlSoapBody += '            <b:value i:type="a:EntityReference">';
+    xmlSoapBody += '              <a:Id>' + entityId.value + '</a:Id>';
+    xmlSoapBody += '              <a:LogicalName>' + entityName + '</a:LogicalName>';
+    xmlSoapBody += '              <a:Name i:nil="true" />';
+    xmlSoapBody += '            </b:value>';
+    xmlSoapBody += '          </a:KeyValuePairOfstringanyType>';
+    xmlSoapBody += '          <a:KeyValuePairOfstringanyType>';
+    xmlSoapBody += '            <b:key>Relationship</b:key>';
+    xmlSoapBody += '            <b:value i:type="a:Relationship">';
+    xmlSoapBody += '              <a:PrimaryEntityRole i:nil="true" />';
+    xmlSoapBody += '              <a:SchemaName>' + relationship.schemaName + '</a:SchemaName>';
+    xmlSoapBody += '            </b:value>';
+    xmlSoapBody += '          </a:KeyValuePairOfstringanyType>';
+    xmlSoapBody += '          <a:KeyValuePairOfstringanyType>';
+    xmlSoapBody += '            <b:key>RelatedEntities</b:key>';
+    xmlSoapBody += '            <b:value i:type="a:EntityReferenceCollection">' + entityReferences + '</b:value>';
+    xmlSoapBody += '          </a:KeyValuePairOfstringanyType>';
+    xmlSoapBody += '        </a:Parameters>';
+    xmlSoapBody += '        <a:RequestId i:nil="true" />';
+    xmlSoapBody += '        <a:RequestName>Disassociate</a:RequestName>';
+    xmlSoapBody += '      </request>';
+    xmlSoapBody += '    </Execute>';
+    return xmlSoapBody;
 }
 Xrm.Sdk.OrganizationServiceProxy.retrieveMultiple = function Xrm_Sdk_OrganizationServiceProxy$retrieveMultiple(fetchXml) {
     var resultXml = Xrm.Sdk.OrganizationServiceProxy._getResponse(Xrm.Sdk.OrganizationServiceProxy._getRetrieveMultipleRequest(fetchXml), 'RetrieveMultiple', null);
@@ -1490,7 +1605,7 @@ Xrm.Sdk.OrganizationServiceProxy.create = function Xrm_Sdk_OrganizationServicePr
     var newGuid = Xrm.Sdk.XmlHelper.selectSingleNodeValueDeep(resultXml, 'CreateResult');
     delete resultXml;
     resultXml = null;
-    return newGuid;
+    return new Xrm.Sdk.Guid(newGuid);
 }
 Xrm.Sdk.OrganizationServiceProxy._getCreateRequest = function Xrm_Sdk_OrganizationServiceProxy$_getCreateRequest(entity) {
     var xml = '<Create xmlns="http://schemas.microsoft.com/xrm/2011/Contracts/Services" ><entity>';
@@ -1607,6 +1722,8 @@ Xrm.Sdk.OrganizationServiceProxy.endExecute = function Xrm_Sdk_OrganizationServi
                 return new Xrm.Sdk.Messages.FetchXmlToQueryExpressionResponse(response);
             case 'RetrieveMetadataChanges':
                 return new Xrm.Sdk.Messages.RetrieveMetadataChangesResponse(response);
+            case 'RetrieveRelationship':
+                return new Xrm.Sdk.RetrieveRelationshipResponse(response);
         }
         return null;
     }
@@ -1619,17 +1736,22 @@ Xrm.Sdk.OrganizationServiceProxy._getSoapEnvelope = function Xrm_Sdk_Organizatio
     return xml;
 }
 Xrm.Sdk.OrganizationServiceProxy._getServerUrl = function Xrm_Sdk_OrganizationServiceProxy$_getServerUrl() {
-    var context = Xrm.Page.context;
-    var crmServerUrl;
-    if (context.isOutlookClient() && !context.isOutlookOnline()) {
-        crmServerUrl = window.location.protocol + '//' + window.location.hostname;
+    if (typeof(Xrm.Page.context.getServerUrl) === 'undefined') {
+        var context = Xrm.Page.context;
+        var crmServerUrl;
+        if (context.isOutlookClient() && !context.isOutlookOnline()) {
+            crmServerUrl = window.location.protocol + '//' + window.location.hostname;
+        }
+        else {
+            crmServerUrl = Xrm.Page.context.getServerUrl();
+            crmServerUrl = crmServerUrl.replace(new RegExp('/^(http|https):\\/\\/([_a-zA-Z0-9\\-\\.]+)(:([0-9]{1,5}))?/'), window.location.protocol + '//' + window.location.hostname);
+            crmServerUrl = crmServerUrl.replace(new RegExp('/\\/$/'), '');
+        }
+        return crmServerUrl;
     }
     else {
-        crmServerUrl = Xrm.Page.context.getServerUrl();
-        crmServerUrl = crmServerUrl.replace(new RegExp('/^(http|https):\\/\\/([_a-zA-Z0-9\\-\\.]+)(:([0-9]{1,5}))?/'), window.location.protocol + '//' + window.location.hostname);
-        crmServerUrl = crmServerUrl.replace(new RegExp('/\\/$/'), '');
+        return Xrm.Page.context.getServerUrl();
     }
-    return crmServerUrl;
 }
 Xrm.Sdk.OrganizationServiceProxy._getResponse = function Xrm_Sdk_OrganizationServiceProxy$_getResponse(soapXmlPacket, action, asyncCallback) {
     var isAsync = (asyncCallback != null);
@@ -1700,6 +1822,53 @@ Xrm.Sdk.OrganizationServiceProxy._getSoapFault = function Xrm_Sdk_OrganizationSe
         }
     }
     return errorMsg;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Xrm.Sdk.Relationship
+
+Xrm.Sdk.Relationship = function Xrm_Sdk_Relationship(schemaName) {
+    this.schemaName = schemaName;
+}
+Xrm.Sdk.Relationship.prototype = {
+    schemaName: null
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Xrm.Sdk.RetrieveRelationshipRequest
+
+Xrm.Sdk.RetrieveRelationshipRequest = function Xrm_Sdk_RetrieveRelationshipRequest() {
+    this.metadataId = Xrm.Sdk.Guid.empty;
+}
+Xrm.Sdk.RetrieveRelationshipRequest.prototype = {
+    name: null,
+    retrieveAsIfPublished: false,
+    
+    serialise: function Xrm_Sdk_RetrieveRelationshipRequest$serialise() {
+        return '<request i:type="a:RetrieveRelationshipRequest" xmlns:a="http://schemas.microsoft.com/xrm/2011/Contracts">' + '<a:Parameters xmlns:b="http://schemas.datacontract.org/2004/07/System.Collections.Generic">' + '<a:KeyValuePairOfstringanyType>' + '<b:key>MetadataId</b:key>' + Xrm.Sdk.Attribute.serialiseValue(this.metadataId, null) + '</a:KeyValuePairOfstringanyType>' + '<a:KeyValuePairOfstringanyType>' + '<b:key>Name</b:key>' + Xrm.Sdk.Attribute.serialiseValue(this.name, null) + '</a:KeyValuePairOfstringanyType>' + '<a:KeyValuePairOfstringanyType>' + '<b:key>RetrieveAsIfPublished</b:key>' + Xrm.Sdk.Attribute.serialiseValue(this.retrieveAsIfPublished, null) + '</a:KeyValuePairOfstringanyType>' + '</a:Parameters>' + '<a:RequestId i:nil="true" />' + '<a:RequestName>RetrieveRelationship</a:RequestName>' + '</request>';
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Xrm.Sdk.RetrieveRelationshipResponse
+
+Xrm.Sdk.RetrieveRelationshipResponse = function Xrm_Sdk_RetrieveRelationshipResponse(response) {
+    var results = Xrm.Sdk.XmlHelper.selectSingleNode(response, 'Results');
+    var $enum1 = ss.IEnumerator.getEnumerator(results.childNodes);
+    while ($enum1.moveNext()) {
+        var nameValuePair = $enum1.current;
+        var key = Xrm.Sdk.XmlHelper.selectSingleNode(nameValuePair, 'key');
+        if (Xrm.Sdk.XmlHelper.getNodeTextValue(key) === 'RelationshipMetadata') {
+            var entity = Xrm.Sdk.XmlHelper.selectSingleNode(nameValuePair, 'value');
+            this.relationshipMetadata = Xrm.Sdk.Metadata.MetadataSerialiser.deSerialiseRelationshipMetadata(entity);
+        }
+    }
+}
+Xrm.Sdk.RetrieveRelationshipResponse.prototype = {
+    relationshipMetadata: null
 }
 
 
@@ -2196,6 +2365,18 @@ Xrm.Sdk.Metadata.OptionSetType.registerEnum('Xrm.Sdk.Metadata.OptionSetType', fa
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// Xrm.Sdk.Metadata.RelationshipType
+
+Xrm.Sdk.Metadata.RelationshipType = function() { };
+Xrm.Sdk.Metadata.RelationshipType.prototype = {
+    OneToManyRelationship: 'OneToManyRelationship', 
+    Default: 'Default', 
+    ManyToManyRelationship: 'ManyToManyRelationship'
+}
+Xrm.Sdk.Metadata.RelationshipType.registerEnum('Xrm.Sdk.Metadata.RelationshipType', false);
+
+
+////////////////////////////////////////////////////////////////////////////////
 // Xrm.Sdk.Metadata.StringFormat
 
 Xrm.Sdk.Metadata.StringFormat = function() { };
@@ -2373,6 +2554,53 @@ Xrm.Sdk.Metadata.MetadataSerialiser.deSerialiseLocalizedLabel = function Xrm_Sdk
     item.languageCode = parseInt(Xrm.Sdk.XmlHelper.selectSingleNodeValue(metaData, 'LanguageCode'));
     return item;
 }
+Xrm.Sdk.Metadata.MetadataSerialiser.deSerialiseRelationshipMetadata = function Xrm_Sdk_Metadata_MetadataSerialiser$deSerialiseRelationshipMetadata(attribute) {
+    var item;
+    var type = Xrm.Sdk.XmlHelper.getAttributeValue(attribute, 'i:type');
+    switch (type) {
+        case 'c:OneToManyRelationshipMetadata':
+            item = {};
+            break;
+        case 'c:ManyToManyRelationshipMetadata':
+            item = {};
+            break;
+        default:
+            throw new Error('Unknown relationship type');
+    }
+    var $enum1 = ss.IEnumerator.getEnumerator(attribute.childNodes);
+    while ($enum1.moveNext()) {
+        var node = $enum1.current;
+        var itemValues = item;
+        var localName = Xrm.Sdk.XmlHelper.getLocalName(node);
+        var fieldName = localName.substr(0, 1).toLowerCase() + localName.substr(1);
+        if (node.attributes.length === 1 && node.attributes[0].nodeName === 'i:nil') {
+            continue;
+        }
+        switch (localName) {
+            case 'SchemaName':
+            case 'ReferencedAttribute':
+            case 'ReferencedEntity':
+            case 'ReferencingAttribute':
+            case 'ReferencingEntity':
+            case 'Entity1IntersectAttribute':
+            case 'Entity1LogicalName':
+            case 'Entity2IntersectAttribute':
+            case 'Entity2LogicalName':
+            case 'IntersectEntityName':
+                itemValues[fieldName] = Xrm.Sdk.XmlHelper.getNodeTextValue(node);
+                break;
+            case 'IsCustomRelationship':
+            case 'IsManaged':
+            case 'IsValidForAdvancedFind':
+                itemValues[fieldName] = Xrm.Sdk.Attribute.deSerialise(node, 'boolean');
+                break;
+            case 'RelationshipType':
+                itemValues[fieldName] = Xrm.Sdk.XmlHelper.getNodeTextValue(node);
+                break;
+        }
+    }
+    return item;
+}
 Xrm.Sdk.Metadata.MetadataSerialiser.deSerialiseOptionMetadata = function Xrm_Sdk_Metadata_MetadataSerialiser$deSerialiseOptionMetadata(item, metaData) {
     item.value = parseInt(Xrm.Sdk.XmlHelper.selectSingleNodeValue(metaData, 'Value'));
     item.label = Xrm.Sdk.Metadata.MetadataSerialiser.deSerialiseLabel({}, Xrm.Sdk.XmlHelper.selectSingleNode(metaData, 'Label'));
@@ -2533,7 +2761,11 @@ Xrm.Sdk.Metadata.Query.MetadataSerialiser.serialiseAttributeQueryExpression = fu
 }
 Xrm.Sdk.Metadata.Query.MetadataSerialiser.serialiseEntityQueryExpression = function Xrm_Sdk_Metadata_Query_MetadataSerialiser$serialiseEntityQueryExpression(item) {
     if (item != null) {
-        var xml = "<b:value i:type='c:EntityQueryExpression' xmlns:c='http://schemas.microsoft.com/xrm/2011/Metadata/Query'>" + Xrm.Sdk.Metadata.Query.MetadataSerialiser.serialiseMetadataQueryExpression(item) + '<c:AttributeQuery>' + Xrm.Sdk.Metadata.Query.MetadataSerialiser.serialiseAttributeQueryExpression(item.attributeQuery) + '</c:AttributeQuery>\r\n                <c:LabelQuery>' + Xrm.Sdk.Metadata.Query.MetadataSerialiser.serialiseLabelQueryExpression(item.labelQuery) + "</c:LabelQuery>\r\n                <c:RelationshipQuery i:nil='true' />\r\n                </b:value>";
+        var xml = "<b:value i:type='c:EntityQueryExpression' xmlns:c='http://schemas.microsoft.com/xrm/2011/Metadata/Query'>" + Xrm.Sdk.Metadata.Query.MetadataSerialiser.serialiseMetadataQueryExpression(item);
+        if (item.attributeQuery != null) {
+            xml += '<c:AttributeQuery>' + Xrm.Sdk.Metadata.Query.MetadataSerialiser.serialiseAttributeQueryExpression(item.attributeQuery) + '</c:AttributeQuery>';
+        }
+        xml += '<c:LabelQuery>' + Xrm.Sdk.Metadata.Query.MetadataSerialiser.serialiseLabelQueryExpression(item.labelQuery) + "</c:LabelQuery>\r\n                <c:RelationshipQuery i:nil='true' />\r\n                </b:value>";
         return xml;
     }
     else {
@@ -2816,6 +3048,9 @@ Xrm.Sdk.Guid.registerClass('Xrm.Sdk.Guid');
 Xrm.Sdk.Money.registerClass('Xrm.Sdk.Money');
 Xrm.Sdk.OptionSetValue.registerClass('Xrm.Sdk.OptionSetValue');
 Xrm.Sdk.OrganizationServiceProxy.registerClass('Xrm.Sdk.OrganizationServiceProxy');
+Xrm.Sdk.Relationship.registerClass('Xrm.Sdk.Relationship');
+Xrm.Sdk.RetrieveRelationshipRequest.registerClass('Xrm.Sdk.RetrieveRelationshipRequest', null, Object);
+Xrm.Sdk.RetrieveRelationshipResponse.registerClass('Xrm.Sdk.RetrieveRelationshipResponse', null, Object);
 Xrm.Sdk.XmlHelper.registerClass('Xrm.Sdk.XmlHelper');
 Xrm.Sdk.Messages.BulkDeleteRequest.registerClass('Xrm.Sdk.Messages.BulkDeleteRequest', null, Object);
 Xrm.Sdk.Messages.BulkDeleteResponse.registerClass('Xrm.Sdk.Messages.BulkDeleteResponse', null, Object);

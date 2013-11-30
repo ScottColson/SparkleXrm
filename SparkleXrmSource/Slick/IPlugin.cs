@@ -12,5 +12,8 @@ namespace Slick
     [ScriptName("Object")]
     public interface IPlugin
     {
+        void Init(Grid grid);
+        void Destroy();
+           
     }
 }
