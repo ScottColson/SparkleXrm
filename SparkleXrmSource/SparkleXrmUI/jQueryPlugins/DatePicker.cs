@@ -19,6 +19,8 @@ namespace SparkleXrm
 
 
         public string ShowOn;
+        public int? FirstDay;
+        public bool ShowOtherMonths;
         public bool ButtonImageOnly;
         public string ButtonImage;
         public Action BeforeShow;

@@ -15,14 +15,14 @@ namespace SparkleXrm.GridEditor
     {
 
         #region Fields
-        private bool _suspendRefresh = false;
-        private Entity[] _rows = new Entity[0];
-        private List<Entity> _data;
-        private Type _entityType;
-        private string _fetchXml = "";
-        private List<SortCol> _sortCols = new List<SortCol>();
-        private bool _itemAdded = false;
-        private bool _lazyLoadPages = true;
+        protected bool _suspendRefresh = false;
+        protected Entity[] _rows = new Entity[0];
+        protected List<Entity> _data;
+        protected Type _entityType;
+        protected string _fetchXml = "";
+        protected List<SortCol> _sortCols = new List<SortCol>();
+        protected bool _itemAdded = false;
+        protected bool _lazyLoadPages = true;
 
         public string ErrorMessage = "";
         public List<Entity> DeleteData;
@@ -121,67 +121,7 @@ namespace SparkleXrm.GridEditor
                 {
                     _data.Reverse();
                 }
-                _data.Sort(delegate(Entity a, Entity b)
-                {
-
-                    object l = a.GetAttributeValue(col.AttributeName);
-                    object r = b.GetAttributeValue(col.AttributeName);
-                    decimal result = 0;
-
-                    string typeName = "";
-                    if (l != null)
-                        typeName = l.GetType().Name;
-                    else if (r != null)
-                        typeName = r.GetType().Name;
-
-                    if (l != r)
-                    {
-                        switch (typeName.ToLowerCase())
-                        {
-                            case "string":
-                                l = l != null ? ((string)l).ToLowerCase() : null;
-                                r = r != null ? ((string)r).ToLowerCase() : null;
-                                if ((bool)Script.Literal("{0}<{1}", l, r))
-                                    result = -1;
-                                else
-                                    result = 1;
-                                break;
-                            case "date":
-                                if ((bool)Script.Literal("{0}<{1}", l, r))
-                                    result = -1;
-                                else
-                                    result = 1;
-                                break;
-                            case "number":
-                                decimal ln = l != null ? ((decimal)l) : 0;
-                                decimal rn = r != null ? ((decimal)r) : 0;
-                                result = (ln - rn);
-                                break;
-                            case "money":
-                                decimal lm = l != null ? ((Money)l).Value : 0;
-                                decimal rm = r != null ? ((Money)r).Value : 0;
-                                result = (lm - rm);
-                                break;
-                            case "optionsetvalue":
-                                int? lo = l != null ? ((OptionSetValue)l).Value : 0;
-                                lo = lo != null ? lo : 0;
-                                int? ro = r != null ? ((OptionSetValue)r).Value : 0;
-                                ro = ro != null ? ro : 0;
-                                result = (decimal)(lo - ro);
-                                break;
-                            case "entityreference":
-                                string le = (l != null) && (((EntityReference)l).Name != null) ? ((EntityReference)l).Name : "";
-                                string re = r != null && (((EntityReference)r).Name != null) ? ((EntityReference)r).Name : "";
-                                if ((bool)Script.Literal("{0}<{1}", le, re))
-                                    result = -1;
-                                else
-                                    result = 1;
-                                break;
-
-                        }
-                    }
-                    return (int)result;
-                });
+                _data.Sort(delegate(Entity a, Entity b) { return Entity.SortDelegate(col.AttributeName, a, b); });
                 
                 if (col.Ascending == false)
                 {
@@ -189,7 +129,7 @@ namespace SparkleXrm.GridEditor
                 }
             }
         }
-
+        
         public List<Entity> GetDirtyItems()
         {
             
@@ -267,7 +207,8 @@ namespace SparkleXrm.GridEditor
                     firstRowIndex = 0;
                     
                 }
-
+                if (String.IsNullOrEmpty(_fetchXml)) // If we have no fetchxml, then don't refresh
+                    return;
                 string parameterisedFetchXml = String.Format(_fetchXml, fetchPageSize, XmlHelper.Encode(this.paging.extraInfo), this.paging.PageNum + 1, orderBy);
                 OrganizationServiceProxy.BeginRetrieveMultiple(parameterisedFetchXml, delegate(object result)
                 {
@@ -406,7 +347,7 @@ namespace SparkleXrm.GridEditor
            
         }
 
-        private string ApplySorting()
+        protected string ApplySorting()
         {
             // Take the sorting and insert into the fetchxml
             string orderBy = string.Empty;
@@ -418,7 +359,7 @@ namespace SparkleXrm.GridEditor
             return orderBy;
         }
 
-        private void ClearPageCache()
+        protected void ClearPageCache()
         {
             //scolson: call any event handlers that need to take action before clearing the cache
             if (this.OnBeginClearPageCache != null)
@@ -427,6 +368,7 @@ namespace SparkleXrm.GridEditor
             }
                 
             _data = new List<Entity>();
+            paging.extraInfo = null;
         }
 
 

@@ -15,6 +15,8 @@ using SparkleXrm.GridEditor;
 using System.Html;
 using System.Runtime.CompilerServices;
 using System.Collections;
+using Xrm;
+using jQueryApi.UI.Interactions;
 
 namespace Client.TimeSheet.View
 {
@@ -22,9 +24,13 @@ namespace Client.TimeSheet.View
     {
         private static Grid daysGrid;
         private static Grid sessionsGrid;
+        private static int StartDaysColumnIndex = 4;
         public static void Init()
         {
-            jQuery.OnDocumentReady(delegate()
+
+            PageEx.MajorVersion = 2013;
+
+          jQuery.OnDocumentReady(delegate()
           {
 
               ValidationApi.RegisterExtenders();
@@ -38,6 +44,10 @@ namespace Client.TimeSheet.View
               SetUpGrids(vm);
               SetUpDatePicker(vm);
 
+              // All Resize Grid
+
+              jQuery.Select("#timesheetGridContainer").Plugin<ResizableObject>().Resizable();
+
               ViewBase.RegisterViewModel(vm);
           });
         }
@@ -45,19 +55,16 @@ namespace Client.TimeSheet.View
         private static void SetUpDatePicker(TimeSheetViewModel vm)
         {
             jQueryObject element = jQuery.Select("#datepicker");
-            DatePickerOptions options = new DatePickerOptions();
-            options.NumberOfMonths = 3;
-            options.CalculateWeek = true;
-
+ 
             string dateFormat = "dd/MM/yy";
             if (OrganizationServiceProxy.UserSettings != null)
             {
                 dateFormat = OrganizationServiceProxy.UserSettings.DateFormatString;
             }
-            options.DateFormat = dateFormat.Replace("MM", "mm").Replace("yyyy", "yy").Replace("M", "m");
 
             DatePickerOptions2 options2 = new DatePickerOptions2();
             options2.NumberOfMonths = 3;
+            options2.FirstDay = OrganizationServiceProxy.OrganizationSettings.WeekStartDayCode.Value.Value;
             options2.DateFormat = dateFormat.Replace("MM", "mm").Replace("yyyy", "yy").Replace("M", "m");
 
 
@@ -70,7 +77,7 @@ namespace Client.TimeSheet.View
                 if (editCommited)
                 {
                     DateTime date = (DateTime)element.Plugin<DatePickerObject>().DatePicker(DatePickerMethod.GetDate);
-                    vm.SessionDataView.SetCurrentWeek(date);
+                    vm.Days.SetCurrentWeek(date);
                 }
             };
 
@@ -81,61 +88,84 @@ namespace Client.TimeSheet.View
 
         public static void SetUpGrids(TimeSheetViewModel vm)
         {
-            GridOptions daysGridOpts = new GridOptions();
-            daysGridOpts.EnableCellNavigation = true;
-            daysGridOpts.EnableColumnReorder = false;
-            daysGridOpts.AutoEdit = false;
-            daysGridOpts.Editable = true;
-            daysGridOpts.RowHeight = 20;
-            daysGridOpts.HeaderRowHeight = 25;
-            daysGridOpts.ForceFitColumns = false;
-            daysGridOpts.EnableAddRow = true;
-
-
-
+           
             // Create Timesheet Grid
             DataViewBase daysDataView = vm.Days;
 
             List<Column> columns = new List<Column>();
             GridDataViewBinder.BindRowIcon(GridDataViewBinder.AddColumn(columns, "", 50, "icon"), "activity");
+            XrmLookupEditor.BindColumn(GridDataViewBinder.AddColumn(columns, "Account", 300, "account"), vm.AccountSeachCommand, "accountid", "name", null);
+            XrmLookupEditor.BindColumn(GridDataViewBinder.AddColumn(columns, "Regarding", 300, "regardingObjectId"), vm.RegardingObjectSearchCommand, "id", "displayName", null);
             XrmLookupEditor.BindColumn(GridDataViewBinder.AddColumn(columns, "Activity", 300, "activity"), vm.ActivitySearchCommand, "activityid", "subject", "activitytypecode");
 
-            GridDataViewBinder.AddColumn(columns, "Mon", 50, "day0");
-            GridDataViewBinder.AddColumn(columns, "Tue", 50, "day1");
-            GridDataViewBinder.AddColumn(columns, "Wed", 50, "day2");
-            GridDataViewBinder.AddColumn(columns, "Thu", 50, "day3");
-            GridDataViewBinder.AddColumn(columns, "Fri", 50, "day4");
-            GridDataViewBinder.AddColumn(columns, "Sat", 50, "day5");
-            GridDataViewBinder.AddColumn(columns, "Sun", 50, "day6");
+            string[] daysOfWeek = new string[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat","Sun","Mon","Tue","Wed","Thu","Fri","Sat" };
+            int firstDayOfWeek = OrganizationServiceProxy.OrganizationSettings.WeekStartDayCode.Value.Value;
 
-            daysGrid = new Grid("#timesheetGridContainer", daysDataView, columns, daysGridOpts);
+            GridDataViewBinder.AddColumn(columns, daysOfWeek[firstDayOfWeek], 50, "day0");
+            GridDataViewBinder.AddColumn(columns, daysOfWeek[firstDayOfWeek + 1], 50, "day1");
+            GridDataViewBinder.AddColumn(columns, daysOfWeek[firstDayOfWeek + 2], 50, "day2");
+            GridDataViewBinder.AddColumn(columns, daysOfWeek[firstDayOfWeek + 3], 50, "day3");
+            GridDataViewBinder.AddColumn(columns, daysOfWeek[firstDayOfWeek + 4], 50, "day4");
+            GridDataViewBinder.AddColumn(columns, daysOfWeek[firstDayOfWeek + 5], 50, "day5");
+            GridDataViewBinder.AddColumn(columns, daysOfWeek[firstDayOfWeek + 6], 50, "day6");
 
             GridDataViewBinder daysDataBinder = new GridDataViewBinder();
-            daysDataBinder.DataBindEvents(daysGrid, daysDataView, "timesheetGridContainer");
+            daysDataBinder.SelectActiveRow = true;
+            daysDataBinder.AddCheckBoxSelectColumn = false;
+            daysGrid = daysDataBinder.DataBindXrmGrid(daysDataView, columns, "timesheetGridContainer", null, true, true);
 
             // Set the totals row meta data
             daysDataView.OnGetItemMetaData += delegate(object item)
             {
+                ItemMetaData metaData = new ItemMetaData();
                 DayEntry day = (DayEntry)item;
                 if (day != null && day.isTotalRow)
                 {
-                    ItemMetaData metaData = new ItemMetaData();
-                    metaData.Editor = null;
+
+                    metaData.Editor = delegate(EditorArguments args) { return null; };
+                    metaData.Columns = new Dictionary<object, Column>();
+                    metaData.Columns["Account"] = new Column("editor", null);
+                    metaData.Columns["Regarding"] = new Column("editor", null);
+                    metaData.Columns["Activity"] = new Column("editor", null);
                     metaData.Formatter = delegate(int row, int cell, object value, Column columnDef, object dataContext)
                     {
-                        if (columnDef.Field == "activity")
-                            return "Total";
-                        else
-                            return Formatters.DefaultFormatter(row, cell, value, columnDef, dataContext);
+                        switch (columnDef.Field)
+                        {
+                            case "account":
+                            case "regardingObjectId":
+                                return "";
+                            case "activity":
+                                return "Total";
+                            default:
+                                return XrmDurationEditor.Formatter(row, cell, value, columnDef, dataContext);
+                        }
+                       
                     };
+                           
                     metaData.CssClasses = "days_total_row";
-                    return metaData;
+                   
                 }
 
                 else
-                    return null;
-            };
+                {
+                    metaData.Formatter = delegate(int row, int cell, object value, Column columnDef, object dataContext)
+                    {
+                        switch (columnDef.Field)
+                        {
+                            case "account":
+                            case "regardingObjectId":
+                            case "activity":
+                                return XrmLookupEditor.Formatter(row, cell, value, columnDef, dataContext);
+                            default:
+                                return XrmDurationEditor.Formatter(row, cell, value, columnDef, dataContext);
+                        }
+                    };
 
+                }
+
+                return metaData;
+            };
+          
             daysDataBinder.DataBindSelectionModel(daysGrid, daysDataView);
 
 
@@ -148,9 +178,11 @@ namespace Client.TimeSheet.View
 
             GridDataViewBinder.AddEditIndicatorColumn(sessionGridCols);
 
-            XrmTextEditor.BindColumn(GridDataViewBinder.AddColumn(sessionGridCols, "Description", 200, "dev1_description"));
+            XrmTextEditor.BindColumn(GridDataViewBinder.AddColumn(sessionGridCols, "Activity", 300, "activitypointer_subject")).Editor = null;
 
-            XrmDateEditor.BindColumn(GridDataViewBinder.AddColumn(sessionGridCols, "Date", 200, "dev1_starttime"), true);
+           
+
+            XrmDateEditor.BindColumn(GridDataViewBinder.AddColumn(sessionGridCols, "Date", 100, "dev1_starttime"), true);
 
             XrmTimeEditor.BindColumn(GridDataViewBinder.AddColumn(sessionGridCols, "Start", 100, "dev1_starttime")).Validator =
                 delegate(object value, object item)
@@ -206,21 +238,33 @@ namespace Client.TimeSheet.View
                 };
 
 
-            XrmDurationEditor.BindColumn(GridDataViewBinder.AddColumn(sessionGridCols, "Duration", 200, "dev1_duration"));
-
+            XrmDurationEditor.BindColumn(GridDataViewBinder.AddColumn(sessionGridCols, "Duration", 70, "dev1_duration"));
+            XrmTextEditor.BindColumn(GridDataViewBinder.AddColumn(sessionGridCols, "Description", 300, "dev1_description"));
 
 
             GridDataViewBinder sessionsDataBinder = new GridDataViewBinder();
-            sessionsGrid = sessionsDataBinder.DataBindXrmGrid(sessionsDataView, sessionGridCols, "sessionsGridContainer", null, true, true);
-            sessionsDataBinder.DataBindSelectionModel(sessionsGrid, sessionsDataView);
+            sessionsDataBinder.SelectActiveRow = false;
+            sessionsDataBinder.AddCheckBoxSelectColumn = true;
 
+            sessionsGrid = sessionsDataBinder.DataBindXrmGrid(sessionsDataView, sessionGridCols, "sessionsGridContainer", null, true, true);
+            
+            sessionsGrid.OnBeforeEditCell.Subscribe(delegate(EventData e, object args)
+            {
+             
+                // Stop the row from being edited if locked
+                Entity item = (Entity)((EditEventData)args).item;
+                bool result = sessionsDataView.OnBeforeEdit(item);
+                Script.Literal("return {0}", result);
+                
+
+            });
 
             daysGrid.OnActiveCellChanged.Subscribe(delegate(EventData e, object args)
             {
                 CellSelection activeCell = daysGrid.GetActiveCell();
                 if (activeCell != null)
                 {
-                    if (activeCell.Cell < 2)
+                    if (activeCell.Cell < StartDaysColumnIndex)
                     {
                         // Whole activity is selected
                         vm.Days.SelectedDay = null;
@@ -228,7 +272,7 @@ namespace Client.TimeSheet.View
                     }
                     else
                     {
-                        vm.Days.SelectedDay = activeCell.Cell - 1;
+                        vm.Days.SelectedDay = activeCell.Cell - (StartDaysColumnIndex-1);
 
                     }
                 }

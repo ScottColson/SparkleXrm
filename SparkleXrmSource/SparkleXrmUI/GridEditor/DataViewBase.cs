@@ -69,7 +69,7 @@ namespace SparkleXrm.GridEditor
 
             this.paging.TotalPages = GetTotalPages();
             this.paging.FromRecord = (this.paging.PageNum * this.paging.PageSize) + 1;
-            this.paging.ToRecord = this.paging.TotalRows;
+            this.paging.ToRecord = Math.Min(this.paging.TotalRows, this.paging.FromRecord + paging.PageSize-1);
         }
         public virtual void SetPagingOptions(PagingInfo p)
         {
@@ -133,6 +133,11 @@ namespace SparkleXrm.GridEditor
         public virtual Func<string, GridValidatorDelegate> GridValidationIndexer()
         {
             return ValidationBinder.GridValidationIndexer;
+        }
+
+        public virtual bool OnBeforeEdit(object item)
+        {
+            return true;
         }
     }
 }

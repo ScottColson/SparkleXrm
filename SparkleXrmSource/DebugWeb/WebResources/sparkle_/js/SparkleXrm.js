@@ -277,6 +277,41 @@ Xrm.StringEx.IN = function Xrm_StringEx$IN(value, values) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// Xrm.TaskIterrator
+
+Xrm.TaskIterrator = function Xrm_TaskIterrator() {
+    this._tasks = [];
+}
+Xrm.TaskIterrator.prototype = {
+    _errorCallBack: null,
+    _successCallBack: null,
+    
+    addTask: function Xrm_TaskIterrator$addTask(task) {
+        this._tasks.add(task);
+    },
+    
+    start: function Xrm_TaskIterrator$start(successCallBack, errorCallBack) {
+        this._errorCallBack = errorCallBack;
+        this._successCallBack = successCallBack;
+        this._completeCallBack();
+    },
+    
+    _completeCallBack: function Xrm_TaskIterrator$_completeCallBack() {
+        var nextAction = this._tasks[0];
+        if (nextAction != null) {
+            this._tasks.remove(nextAction);
+            nextAction(ss.Delegate.create(this, this._completeCallBack), this._errorCallBack);
+        }
+        else {
+            if (this._successCallBack != null) {
+                this._successCallBack();
+            }
+        }
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 // Xrm.TabItem
 
 Xrm.TabItem = function Xrm_TabItem() {
@@ -374,7 +409,8 @@ Xrm.Sdk.EntityStates.prototype = {
     unchanged: 0, 
     created: 1, 
     changed: 2, 
-    deleted: 3
+    deleted: 3, 
+    readOnly: 4
 }
 Xrm.Sdk.EntityStates.registerEnum('Xrm.Sdk.EntityStates', false);
 
@@ -437,6 +473,9 @@ Xrm.Sdk.Attribute.deSerialise = function Xrm_Sdk_Attribute$deSerialise(node, ove
                 break;
             case 'Money':
                 value = new Xrm.Sdk.Money(parseFloat(Xrm.Sdk.XmlHelper.selectSingleNodeValue(node, 'Value')));
+                break;
+            case 'EntityCollection':
+                value = Xrm.Sdk.EntityCollection.deSerialise(node);
                 break;
             default:
                 value = stringValue;
@@ -539,18 +578,7 @@ Xrm.Sdk.Attribute.serialiseValue = function Xrm_Sdk_Attribute$serialiseValue(val
             break;
         case 'EntityCollection':
             valueXml += '<b:value i:type="' + Xrm.Sdk.Attribute._addNsPrefix(typeName) + '">';
-            if (Type.getInstanceType(value) !== Array) {
-                throw new Error("An attribute value of type 'EntityCollection' must contain an Array() of Entity instances");
-            }
-            var arrayValue = Type.safeCast(value, Array);
-            valueXml += '<a:Entities>';
-            for (var i = 0; i < arrayValue.length; i++) {
-                if (Type.getInstanceType(arrayValue[i]) !== Xrm.Sdk.Entity) {
-                    throw new Error("An attribute value of type 'EntityCollection' must contain an Array() of Entity instances");
-                }
-                valueXml += (arrayValue[i]).serialise(false);
-            }
-            valueXml += '</a:Entities>';
+            valueXml += Xrm.Sdk.EntityCollection.serialise(value);
             valueXml += '</b:value>';
             break;
         case 'Money':
@@ -627,6 +655,17 @@ Xrm.Sdk.Attribute.prototype = {
 // Xrm.Sdk.AttributeTypes
 
 Xrm.Sdk.AttributeTypes = function Xrm_Sdk_AttributeTypes() {
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Xrm.Sdk.OrganizationSettings
+
+Xrm.Sdk.OrganizationSettings = function Xrm_Sdk_OrganizationSettings() {
+    Xrm.Sdk.OrganizationSettings.initializeBase(this, [ Xrm.Sdk.OrganizationSettings.entityLogicalName ]);
+}
+Xrm.Sdk.OrganizationSettings.prototype = {
+    weekstartdaycode: null
 }
 
 
@@ -1035,8 +1074,16 @@ Xrm.Sdk.DateTimeEx.dateAdd = function Xrm_Sdk_DateTimeEx$dateAdd(interval, value
     return result;
 }
 Xrm.Sdk.DateTimeEx.firstDayOfWeek = function Xrm_Sdk_DateTimeEx$firstDayOfWeek(date) {
+    var weekStartOffset = 0;
+    if (Xrm.Sdk.OrganizationServiceProxy.organizationSettings != null) {
+        weekStartOffset = Xrm.Sdk.OrganizationServiceProxy.organizationSettings.weekstartdaycode.value;
+    }
     var startOfWeek = new Date(date.getTime());
     var dayOfWeek = startOfWeek.getDay();
+    dayOfWeek = dayOfWeek - weekStartOffset;
+    if (dayOfWeek < 0) {
+        dayOfWeek = 7 + dayOfWeek;
+    }
     if (dayOfWeek > 0) {
         startOfWeek = Xrm.Sdk.DateTimeEx.dateAdd('days', (dayOfWeek * -1), startOfWeek);
     }
@@ -1047,11 +1094,17 @@ Xrm.Sdk.DateTimeEx.firstDayOfWeek = function Xrm_Sdk_DateTimeEx$firstDayOfWeek(d
     return startOfWeek;
 }
 Xrm.Sdk.DateTimeEx.lastDayOfWeek = function Xrm_Sdk_DateTimeEx$lastDayOfWeek(date) {
+    var weekStartOffset = 0;
+    if (Xrm.Sdk.OrganizationServiceProxy.organizationSettings != null) {
+        weekStartOffset = Xrm.Sdk.OrganizationServiceProxy.organizationSettings.weekstartdaycode.value;
+    }
     var endOfWeek = new Date(date.getTime());
     var dayOfWeek = endOfWeek.getDay();
-    if (dayOfWeek > 0) {
-        endOfWeek = Xrm.Sdk.DateTimeEx.dateAdd('days', (7 - dayOfWeek), endOfWeek);
+    dayOfWeek = dayOfWeek - weekStartOffset;
+    if (dayOfWeek < 0) {
+        dayOfWeek = 7 + dayOfWeek;
     }
+    endOfWeek = Xrm.Sdk.DateTimeEx.dateAdd('days', (6 - dayOfWeek), endOfWeek);
     endOfWeek.setHours(23);
     endOfWeek.setMinutes(59);
     endOfWeek.setSeconds(59);
@@ -1074,6 +1127,9 @@ Xrm.Sdk.DateTimeEx.formatDateSpecific = function Xrm_Sdk_DateTimeEx$formatDateSp
     else {
         return '';
     }
+}
+Xrm.Sdk.DateTimeEx.parseDateSpecific = function Xrm_Sdk_DateTimeEx$parseDateSpecific(dateValue, formatString) {
+    return xrmjQuery.datepicker.parseDate( formatString, dateValue );
 }
 Xrm.Sdk.DateTimeEx.setTime = function Xrm_Sdk_DateTimeEx$setTime(date, time) {
     if (date != null && time != null) {
@@ -1104,6 +1160,68 @@ Xrm.Sdk.Entity = function Xrm_Sdk_Entity(entityName) {
     this.logicalName = entityName;
     this._attributes = {};
     this.formattedValues = {};
+}
+Xrm.Sdk.Entity.sortDelegate = function Xrm_Sdk_Entity$sortDelegate(attributeName, a, b) {
+    var l = a.getAttributeValue(attributeName);
+    var r = b.getAttributeValue(attributeName);
+    var result = 0;
+    var typeName = '';
+    if (l != null) {
+        typeName = Type.getInstanceType(l).get_name();
+    }
+    else if (r != null) {
+        typeName = Type.getInstanceType(r).get_name();
+    }
+    if (l !== r) {
+        switch (typeName.toLowerCase()) {
+            case 'string':
+                l = (l != null) ? (l).toLowerCase() : null;
+                r = (r != null) ? (r).toLowerCase() : null;
+                if (l<r) {
+                    result = -1;
+                }
+                else {
+                    result = 1;
+                }
+                break;
+            case 'date':
+                if (l<r) {
+                    result = -1;
+                }
+                else {
+                    result = 1;
+                }
+                break;
+            case 'number':
+                var ln = (l != null) ? (l) : 0;
+                var rn = (r != null) ? (r) : 0;
+                result = (ln - rn);
+                break;
+            case 'money':
+                var lm = (l != null) ? (l).value : 0;
+                var rm = (r != null) ? (r).value : 0;
+                result = (lm - rm);
+                break;
+            case 'optionsetvalue':
+                var lo = (l != null) ? (l).value : 0;
+                lo = (lo != null) ? lo : 0;
+                var ro = (r != null) ? (r).value : 0;
+                ro = (ro != null) ? ro : 0;
+                result = (lo - ro);
+                break;
+            case 'entityreference':
+                var le = ((l != null) && ((l).name != null)) ? (l).name : '';
+                var re = (r != null && ((r).name != null)) ? (r).name : '';
+                if (le<re) {
+                    result = -1;
+                }
+                else {
+                    result = 1;
+                }
+                break;
+        }
+    }
+    return result;
 }
 Xrm.Sdk.Entity.prototype = {
     logicalName: null,
@@ -1246,6 +1364,33 @@ Xrm.Sdk.Entity.prototype = {
 
 Xrm.Sdk.EntityCollection = function Xrm_Sdk_EntityCollection(entities) {
     this._entities = new Xrm.Sdk.DataCollectionOfEntity(entities);
+}
+Xrm.Sdk.EntityCollection.serialise = function Xrm_Sdk_EntityCollection$serialise(value) {
+    var valueXml = '';
+    if (Type.getInstanceType(value) !== Xrm.Sdk.EntityCollection) {
+        throw new Error("An attribute value of type 'EntityCollection' must contain an EntityCollection instance");
+    }
+    var arrayValue = Type.safeCast(value, Xrm.Sdk.EntityCollection);
+    valueXml += '<a:Entities>';
+    for (var i = 0; i < arrayValue._entities.get_count(); i++) {
+        valueXml += (arrayValue.get_item(i)).serialise(false);
+    }
+    valueXml += '</a:Entities>';
+    return valueXml;
+}
+Xrm.Sdk.EntityCollection.deSerialise = function Xrm_Sdk_EntityCollection$deSerialise(node) {
+    var entities = [];
+    var collection = new Xrm.Sdk.EntityCollection(entities);
+    collection.set_entityName(Xrm.Sdk.XmlHelper.selectSingleNodeValue(node, 'EntityName'));
+    var entitiesNode = Xrm.Sdk.XmlHelper.selectSingleNodeDeep(node, 'Entities');
+    var $enum1 = ss.IEnumerator.getEnumerator(entitiesNode.childNodes);
+    while ($enum1.moveNext()) {
+        var entityNode = $enum1.current;
+        var entity = new Xrm.Sdk.Entity(collection.get_entityName());
+        entity.deSerialise(entityNode);
+        Xrm.ArrayEx.add(entities, entity);
+    }
+    return collection;
 }
 Xrm.Sdk.EntityCollection.prototype = {
     _entities: null,
@@ -1404,13 +1549,20 @@ Xrm.Sdk.OptionSetValue.prototype = {
 
 Xrm.Sdk.OrganizationServiceProxy = function Xrm_Sdk_OrganizationServiceProxy() {
 }
+Xrm.Sdk.OrganizationServiceProxy.registerExecuteMessageResponseType = function Xrm_Sdk_OrganizationServiceProxy$registerExecuteMessageResponseType(responseTypeName, organizationResponseType) {
+    Xrm.Sdk.OrganizationServiceProxy.executeMessageResponseTypes[responseTypeName] = organizationResponseType;
+}
 Xrm.Sdk.OrganizationServiceProxy.getUserSettings = function Xrm_Sdk_OrganizationServiceProxy$getUserSettings() {
     if (Xrm.Sdk.OrganizationServiceProxy.userSettings == null) {
         Xrm.Sdk.OrganizationServiceProxy.userSettings = Xrm.Sdk.OrganizationServiceProxy.retrieve(Xrm.Sdk.UserSettings.entityLogicalName, Xrm.Page.context.getUserId(), [ 'AllColumns' ]);
+        Xrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring = Xrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring.replaceAll(':', Xrm.Sdk.OrganizationServiceProxy.userSettings.timeseparator);
+        Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring = Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring.replaceAll('/', Xrm.Sdk.OrganizationServiceProxy.userSettings.dateseparator);
+        Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring = Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring.replaceAll('MM', 'mm').replaceAll('yyyy', 'UU').replaceAll('yy', 'y').replaceAll('UU', 'yy').replaceAll('M', 'm');
     }
-    Xrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring = Xrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring.replaceAll(':', Xrm.Sdk.OrganizationServiceProxy.userSettings.timeseparator);
-    Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring = Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring.replaceAll('/', Xrm.Sdk.OrganizationServiceProxy.userSettings.dateseparator);
-    Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring = Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring.replaceAll('MM', 'mm').replaceAll('yyyy', 'UU').replaceAll('yy', 'y').replaceAll('UU', 'yy').replaceAll('M', 'm');
+    if (Xrm.Sdk.OrganizationServiceProxy.organizationSettings == null) {
+        var fetchXml = "<fetch>\r\n                                    <entity name='organization' >\r\n                                        <attribute name='weekstartdaycode' />\r\n                                    </entity>\r\n                                </fetch>";
+        Xrm.Sdk.OrganizationServiceProxy.organizationSettings = Xrm.Sdk.OrganizationServiceProxy.retrieveMultiple(fetchXml).get_entities().get_item(0);
+    }
     return Xrm.Sdk.OrganizationServiceProxy.userSettings;
 }
 Xrm.Sdk.OrganizationServiceProxy.doesNNAssociationExist = function Xrm_Sdk_OrganizationServiceProxy$doesNNAssociationExist(relationship, Entity1, Entity2) {
@@ -1724,8 +1876,16 @@ Xrm.Sdk.OrganizationServiceProxy.endExecute = function Xrm_Sdk_OrganizationServi
                 return new Xrm.Sdk.Messages.RetrieveMetadataChangesResponse(response);
             case 'RetrieveRelationship':
                 return new Xrm.Sdk.RetrieveRelationshipResponse(response);
+            default:
+                if (Object.keyExists(Xrm.Sdk.OrganizationServiceProxy.executeMessageResponseTypes, type)) {
+                    var responseType = Xrm.Sdk.OrganizationServiceProxy.executeMessageResponseTypes[type];
+                    var exectueResponse = new responseType(response);
+                    return exectueResponse;
+                }
+                else {
+                    return null;
+                }
         }
-        return null;
     }
     else {
         throw new Error(asyncState);
@@ -1761,7 +1921,9 @@ Xrm.Sdk.OrganizationServiceProxy._getResponse = function Xrm_Sdk_OrganizationSer
     xmlHttpRequest.open('POST', Xrm.Sdk.OrganizationServiceProxy._getServerUrl() + '/XRMServices/2011/Organization.svc/web', isAsync);
     xmlHttpRequest.setRequestHeader('SOAPAction', 'http://schemas.microsoft.com/xrm/2011/Contracts/Services/IOrganizationService/' + action);
     xmlHttpRequest.setRequestHeader('Content-Type', 'text/xml; charset=utf-8');
-    xmlHttpRequest.withCredentials = true;;
+    if (Xrm.Sdk.OrganizationServiceProxy.withCredentials) {
+        xmlHttpRequest.withCredentials = true;;
+    }
     if (isAsync) {
         xmlHttpRequest.onreadystatechange = function() {
             if (xmlHttpRequest == null) {
@@ -2479,6 +2641,7 @@ Xrm.Sdk.Metadata.MetadataSerialiser.deSerialiseEntityMetadata = function Xrm_Sdk
             case 'RecurrenceBaseEntityLogicalName':
             case 'ReportViewName':
             case 'SchemaName':
+            case 'PrimaryImageAttribute':
                 itemValues[fieldName] = Xrm.Sdk.XmlHelper.getNodeTextValue(node);
                 break;
             case 'AutoRouteToOwnerQueue':
@@ -2669,7 +2832,7 @@ Xrm.Sdk.Metadata.MetadataCache.getSmallIconUrl = function Xrm_Sdk_Metadata_Metad
             return '../../' + entity.iconSmallName;
         }
         else {
-            return '/_imgs/ico_16_customEnity.gif';
+            return '../../../../_Common/icon.aspx?cache=1&iconType=NavigationIcon&objectTypeCode=' + entity.objectTypeCode.toString();
         }
     }
     else {
@@ -3033,12 +3196,14 @@ Xrm.DelegateItterator.registerClass('Xrm.DelegateItterator');
 Xrm.NumberEx.registerClass('Xrm.NumberEx');
 Xrm.PageEx.registerClass('Xrm.PageEx');
 Xrm.StringEx.registerClass('Xrm.StringEx');
+Xrm.TaskIterrator.registerClass('Xrm.TaskIterrator');
 Xrm.TabItem.registerClass('Xrm.TabItem');
 Xrm.TabSection.registerClass('Xrm.TabSection');
 Xrm.Sdk.Attribute.registerClass('Xrm.Sdk.Attribute');
 Xrm.Sdk.AttributeTypes.registerClass('Xrm.Sdk.AttributeTypes');
-Xrm.Sdk.UserSettingsAttributes.registerClass('Xrm.Sdk.UserSettingsAttributes');
 Xrm.Sdk.Entity.registerClass('Xrm.Sdk.Entity', null, Xrm.ComponentModel.INotifyPropertyChanged);
+Xrm.Sdk.OrganizationSettings.registerClass('Xrm.Sdk.OrganizationSettings', Xrm.Sdk.Entity);
+Xrm.Sdk.UserSettingsAttributes.registerClass('Xrm.Sdk.UserSettingsAttributes');
 Xrm.Sdk.UserSettings.registerClass('Xrm.Sdk.UserSettings', Xrm.Sdk.Entity);
 Xrm.Sdk.DataCollectionOfEntity.registerClass('Xrm.Sdk.DataCollectionOfEntity', null, ss.IEnumerable);
 Xrm.Sdk.DateTimeEx.registerClass('Xrm.Sdk.DateTimeEx');
@@ -3073,6 +3238,16 @@ Xrm.Sdk.Ribbon.RibbonMenu.registerClass('Xrm.Sdk.Ribbon.RibbonMenu');
 Xrm.Sdk.Ribbon.RibbonMenuSection.registerClass('Xrm.Sdk.Ribbon.RibbonMenuSection');
 Xrm.Services.CachedOrganizationService.registerClass('Xrm.Services.CachedOrganizationService');
 Xrm.Services.OrganizationServiceCache.registerClass('Xrm.Services.OrganizationServiceCache');
+Xrm.PageEx.majorVersion = 0;
+(function () {
+    Xrm.PageEx.majorVersion = 2011;
+    if (typeof(window.APPLICATION_VERSION) !== 'undefined') {
+        var applicationVersion = window.APPLICATION_VERSION;
+        if (applicationVersion !== '5.0') {
+            Xrm.PageEx.majorVersion = 2013;
+        }
+    }
+})();
 Xrm.Sdk.AttributeTypes.string_ = 'string';
 Xrm.Sdk.AttributeTypes.decimal_ = 'decimal';
 Xrm.Sdk.AttributeTypes.int_ = 'int';
@@ -3085,6 +3260,7 @@ Xrm.Sdk.AttributeTypes.optionSetValue = 'OptionSetValue';
 Xrm.Sdk.AttributeTypes.aliasedValue = 'AliasedValue';
 Xrm.Sdk.AttributeTypes.entityCollection = 'EntityCollection';
 Xrm.Sdk.AttributeTypes.money = 'Money';
+Xrm.Sdk.OrganizationSettings.entityLogicalName = 'organization';
 Xrm.Sdk.UserSettingsAttributes.userSettingsId = 'usersettingsid';
 Xrm.Sdk.UserSettingsAttributes.businessUnitId = 'businessunitid';
 Xrm.Sdk.UserSettingsAttributes.calendarType = 'calendartype';
@@ -3134,7 +3310,10 @@ Xrm.Sdk.UserSettingsAttributes.workdayStartTime = 'workdaystarttime';
 Xrm.Sdk.UserSettingsAttributes.workdayStopTime = 'workdaystoptime';
 Xrm.Sdk.UserSettings.entityLogicalName = 'usersettings';
 Xrm.Sdk.Guid.empty = new Xrm.Sdk.Guid('00000000-0000-0000-0000-000000000000');
+Xrm.Sdk.OrganizationServiceProxy.withCredentials = false;
 Xrm.Sdk.OrganizationServiceProxy.userSettings = null;
+Xrm.Sdk.OrganizationServiceProxy.executeMessageResponseTypes = {};
+Xrm.Sdk.OrganizationServiceProxy.organizationSettings = null;
 Xrm.Sdk.XmlHelper._encode_map = { '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' };
 Xrm.Sdk.XmlHelper._decode_map = { '&amp;': '&', '&quot;': '"', '&lt;': '<', '&gt;': '>' };
 Xrm.Sdk.Metadata.MetadataCache._attributeMetaData = {};

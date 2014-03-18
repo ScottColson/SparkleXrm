@@ -8,6 +8,7 @@ using SparkleXrm.jQueryPlugins;
 using System;
 using System.Collections.Generic;
 using System.Html;
+using System.Runtime.CompilerServices;
 using Xrm;
 using Xrm.Sdk;
 using Xrm.Sdk.Metadata;
@@ -16,6 +17,9 @@ namespace SparkleXrm.GridEditor
 {
     public class GridDataViewBinder
     {
+        public bool SelectActiveRow = true;
+        public bool AddCheckBoxSelectColumn = true;
+        public bool MultiSelect = true;
         private string _sortColumnName;
         private Grid _grid;
         /// <summary>
@@ -38,26 +42,34 @@ namespace SparkleXrm.GridEditor
             gridOptions.EnableCellNavigation = true;
             gridOptions.AutoEdit = editable;
             gridOptions.Editable = editable;
+            gridOptions.AsyncEditorLoading = true;
             gridOptions.EnableAddRow = allowAddNewRow;
 
             // Set non-variable options
-            gridOptions.RowHeight = 20;
+            gridOptions.RowHeight = PageEx.MajorVersion==2013 ? 30 : 20;
             gridOptions.HeaderRowHeight = 25;
             //gridOptions.ForceFitColumns = true;
             gridOptions.EnableColumnReorder = false;
 
-            CheckboxSelectColumnOptions checkboxOptions = new CheckboxSelectColumnOptions();
-            checkboxOptions.cssClass = "sparkle-checkbox-column";
-            
-            // Add check box column
-            CheckboxSelectColumn checkBoxSelector = new CheckboxSelectColumn(checkboxOptions);
-            Column checkBoxColumn = checkBoxSelector.GetColumnDefinition();
-            columns.Insert(0, checkBoxColumn);
+            CheckboxSelectColumn checkBoxSelector = null;
+            if (AddCheckBoxSelectColumn)
+            {
+                CheckboxSelectColumnOptions checkboxOptions = new CheckboxSelectColumnOptions();
+                checkboxOptions.cssClass = "sparkle-checkbox-column";
 
+                // Add check box column
+                checkBoxSelector = new CheckboxSelectColumn(checkboxOptions);
+                Column checkBoxColumn = checkBoxSelector.GetColumnDefinition();
+                columns.Insert(0, checkBoxColumn);
+            }
 
             Grid grid = new Grid("#" + gridId, dataView, columns, gridOptions);
 
-            grid.RegisterPlugin(checkBoxSelector);
+            if (AddCheckBoxSelectColumn)
+            {
+                grid.RegisterPlugin(checkBoxSelector);
+            }
+
             this.DataBindSelectionModel(grid, dataView);
             if (!string.IsNullOrEmpty(pagerId))
             {
@@ -106,14 +118,16 @@ namespace SparkleXrm.GridEditor
             gridOptions.HeaderRowHeight = 25;
             gridOptions.EnableColumnReorder = false;
 
-            CheckboxSelectColumnOptions checkboxOptions = new CheckboxSelectColumnOptions();
-            checkboxOptions.cssClass = "sparkle-checkbox-column";
-
-            // Add check box column
-            CheckboxSelectColumn checkBoxSelector = new CheckboxSelectColumn(checkboxOptions);
-            Column checkBoxColumn = checkBoxSelector.GetColumnDefinition();
-            columns.Insert(0, checkBoxColumn);
-
+            CheckboxSelectColumn checkBoxSelector = null;
+            if (AddCheckBoxSelectColumn)
+            {
+                CheckboxSelectColumnOptions checkboxOptions = new CheckboxSelectColumnOptions();
+                checkboxOptions.cssClass = "sparkle-checkbox-column";
+                // Add check box column
+                checkBoxSelector = new CheckboxSelectColumn(checkboxOptions);
+                Column checkBoxColumn = checkBoxSelector.GetColumnDefinition();
+                columns.Insert(0, checkBoxColumn);
+            }
 
             Grid grid = new Grid("#" + gridId, dataView, columns, gridOptions);
 
@@ -292,13 +306,15 @@ namespace SparkleXrm.GridEditor
                 }
             }
         }
+        
         public void DataBindSelectionModel(Grid grid, DataViewBase dataView)
         {
             // Set up selection model if needed
             // Create selection model
-
+            
             RowSelectionModelOptions selectionModelOptions = new RowSelectionModelOptions();
-            selectionModelOptions.SelectActiveRow = true;
+            selectionModelOptions.SelectActiveRow = SelectActiveRow;
+            selectionModelOptions.MultiRowSelect = this.MultiSelect;
             RowSelectionModel selectionModel = new RowSelectionModel(selectionModelOptions);
 
             // Bind two way sync of selected rows
@@ -306,14 +322,44 @@ namespace SparkleXrm.GridEditor
             bool inHandler = false;
             selectionModel.OnSelectedRangesChanged.Subscribe(delegate(EventData e, object args)
             {
+                //if (grid.GetEditorLock().IsActive())
+                //{
+                //    e.StopPropagation();
+                //    return;
+                //}
                 if (inHandler)
                     return;
                 inHandler = true;
-                dataView.RaiseOnSelectedRowsChanged((SelectedRange[])args);
+                // Has the selected row changeD?
+                SelectedRange[] selectedRows = dataView.GetSelectedRows();
+                SelectedRange[] newSelectedRows = (SelectedRange[])args;
+                bool changed = selectedRows.Length!=newSelectedRows.Length;
+                if (!changed)
+                {
+                    // Compare the actual selected rows
+                    for (int i = 0; i < selectedRows.Length; i++)
+                    {
+                        if (selectedRows[i].FromRow!=newSelectedRows[i].FromRow)
+                        {
+                            changed = true;
+                            break;
+                        }
+                    }
+
+                }
+                
+               
+               
+                if (changed)
+                {
+                    dataView.RaiseOnSelectedRowsChanged(newSelectedRows);
+                }
                 inHandler = false;
             });
             dataView.OnSelectedRowsChanged+=delegate()
             {
+                //if (grid.GetEditorLock().IsActive())
+                //    return;
                 if (inHandler)
                     return;
                 inHandler = true;
@@ -390,7 +436,7 @@ namespace SparkleXrm.GridEditor
                     grid.UpdateRowCount();
                     grid.Render();
                 }
-               
+                grid.ResizeCanvas();
             });
 
 
@@ -477,18 +523,20 @@ namespace SparkleXrm.GridEditor
             {
                 
                 DataLoadedNotifyEventArgs args = (DataLoadedNotifyEventArgs)a;
-                if (args.ErrorMessage == null)
+                if (args != null)
                 {
-                    for (int i = args.From; i <= args.To; i++)
+                    if (args.ErrorMessage == null)
                     {
-                        grid.InvalidateRow(i);
+                        for (int i = args.From; i <= args.To; i++)
+                        {
+                            grid.InvalidateRow(i);
+                        }
+                        grid.UpdateRowCount();
+                        grid.Render();
                     }
-                    grid.UpdateRowCount();
-                    grid.Render();
+                    else
+                        Script.Alert("There was a problem refreshing the grid.\nPlease contact your system administrator:\n" + args.ErrorMessage);
                 }
-                else
-                    Script.Alert("There was a problem refreshing the grid.\nPlease contact your system administrator:\n" + args.ErrorMessage);
-
                 if (loadingIndicator != null)
                     loadingIndicator.Plugin<jQueryBlockUI>().Unblock();
             });
@@ -516,13 +564,14 @@ namespace SparkleXrm.GridEditor
 
             BlockUICSS css = new BlockUICSS();
             css.border = "0px";
-            css.width = "100px";
-            css.height = "100px";
+            css.backgroundColor = "transparent";
+            //css.width = "100px";
+            //css.height = "100px";
 
             OverlayCSS overlayCss = new OverlayCSS();
-            overlayCss.BackgroundColor = "#FFFFFF";
-            overlayCss.Opacity = "0.5";
-            blockOpts.OverlayCSS = overlayCss;
+            
+            overlayCss.Opacity = "0";
+            //blockOpts.OverlayCSS = overlayCss;
             blockOpts.Css = css;
             blockOpts.Message = "<span class='loading-indicator'><label>Loading...</label></span>";
             loadingIndicator.Plugin<jQueryBlockUI>().Block(blockOpts);
@@ -692,7 +741,16 @@ namespace SparkleXrm.GridEditor
                 .Formatter = delegate(int row, int cell, object value, Column columnDef, object dataContext)
                 {
                     EntityStates state = (EntityStates)value;
-                    return ((state == EntityStates.Changed) || (state == EntityStates.Created)) ? "<span class='grid-edit-indicator'></span>" : "";
+                    switch (state)
+                    {
+                        case EntityStates.Created:
+                        case EntityStates.Changed:
+                            return "<span class='grid-edit-indicator'></span>";
+                        case EntityStates.ReadOnly:
+                            return "<span class='grid-readonly-indicator'></span>";
+                        default:
+                            return "";
+                    }
                 };
         }
  

@@ -19,31 +19,48 @@ namespace Xrm.Sdk
     public class OrganizationServiceProxy
     {
         #region Fields
+        public static bool WithCredentials = false; // This should be set to true if using Integrated auth with Visual Studio debug server in chrome such that Organization.svc calls are cross domain
         public static UserSettings UserSettings = null;
+        public static Dictionary<string, Type> ExecuteMessageResponseTypes = new Dictionary<string, Type>();
+        public static OrganizationSettings OrganizationSettings = null;
         #endregion
 
         #region Methods
+        public static void RegisterExecuteMessageResponseType(string responseTypeName, Type organizationResponseType)
+        {
+            ExecuteMessageResponseTypes[responseTypeName] = organizationResponseType;
 
+        }
         public static UserSettings GetUserSettings()
         {
 
             if (OrganizationServiceProxy.UserSettings == null)
             {
                 OrganizationServiceProxy.UserSettings = (UserSettings)OrganizationServiceProxy.Retrieve(UserSettings.EntityLogicalName, Page.Context.GetUserId(), new string[] { "AllColumns" });
+                // Add the separator values
+                UserSettings.TimeFormatString = UserSettings.TimeFormatString.Replace(":", OrganizationServiceProxy.UserSettings.TimeSeparator);
+                UserSettings.DateFormatString = UserSettings.DateFormatString.Replace(@"/", OrganizationServiceProxy.UserSettings.DateSeparator);
+
+                // We need to change the format string from CRM into the datepicker format which is:
+                // mm/dd/yy   Default - mm/dd/yy
+                // yy-mm-dd   ISO 8601 - yy-mm-dd
+                // d M, y   Short - d M, y
+                // d MM, y   Medium - d MM, y
+                // DD, d MM, yy   Full - DD, d MM, yy
+                // 'day' d 'of' MM 'in the year' yy   With text - 'day' d 'of' MM 'in the year' yy
+                UserSettings.DateFormatString = UserSettings.DateFormatString.Replace("MM", "mm").Replace("yyyy", "UU").Replace("yy", "y").Replace("UU", "yy").Replace("M", "m");
             }
 
-            // Add the separator values
-            UserSettings.TimeFormatString = UserSettings.TimeFormatString.Replace(":", OrganizationServiceProxy.UserSettings.TimeSeparator);
-            UserSettings.DateFormatString = UserSettings.DateFormatString.Replace(@"/", OrganizationServiceProxy.UserSettings.DateSeparator);
+            if (OrganizationServiceProxy.OrganizationSettings == null)
+            {
+                string fetchXml = @"<fetch>
+                                    <entity name='organization' >
+                                        <attribute name='weekstartdaycode' />
+                                    </entity>
+                                </fetch>";
 
-            // We need to change the format string from CRM into the datepicker format which is:
-            // mm/dd/yy   Default - mm/dd/yy
-            // yy-mm-dd   ISO 8601 - yy-mm-dd
-            // d M, y   Short - d M, y
-            // d MM, y   Medium - d MM, y
-            // DD, d MM, yy   Full - DD, d MM, yy
-            // 'day' d 'of' MM 'in the year' yy   With text - 'day' d 'of' MM 'in the year' yy
-            UserSettings.DateFormatString = UserSettings.DateFormatString.Replace("MM", "mm").Replace("yyyy", "UU").Replace("yy", "y").Replace("UU", "yy").Replace("M", "m");
+                OrganizationServiceProxy.OrganizationSettings = (OrganizationSettings)OrganizationServiceProxy.RetrieveMultiple(fetchXml).Entities[0];
+            }
             return UserSettings;
 
         }
@@ -151,7 +168,7 @@ namespace Xrm.Sdk
             xmlSoapBody += "      </request>";
             xmlSoapBody += "    </Execute>";
 
-            
+
             return xmlSoapBody;
 
         }
@@ -165,7 +182,7 @@ namespace Xrm.Sdk
             Script.Literal("delete {0}", resultXml);
             resultXml = null;
         }
-        
+
         private static string GetDisassociateRequest(string entityName, Guid entityId, Relationship relationship, List<EntityReference> relatedEntities)
         {
 
@@ -338,7 +355,7 @@ namespace Xrm.Sdk
             return xml;
         }
 
-       
+
         /// <summary>
         /// Creates a new entity record using the supplied Entity object
         /// </summary>
@@ -387,7 +404,7 @@ namespace Xrm.Sdk
         public static void SetState(Guid id, string entityName, int stateCode, int statusCode)
         {
             XmlDocument resultXml = GetResponse(GetSetStateRequest(id, entityName, stateCode, statusCode), "Execute", null);
-           
+
             // Tidy up
             Script.Literal("delete {0}", resultXml);
             resultXml = null;
@@ -415,7 +432,7 @@ namespace Xrm.Sdk
         }
         private static string GetSetStateRequest(Guid id,string entityName,int stateCode, int statusCode)
         {
-            return String.Format("<Execute xmlns=\"http://schemas.microsoft.com/xrm/2011/Contracts/Services\">" + 
+            return String.Format("<Execute xmlns=\"http://schemas.microsoft.com/xrm/2011/Contracts/Services\">" +
                 "<request i:type=\"b:SetStateRequest\" xmlns:a=\"http://schemas.microsoft.com/xrm/2011/Contracts\" xmlns:b=\"http://schemas.microsoft.com/crm/2011/Contracts\">"+
                 "<a:Parameters xmlns:c=\"http://schemas.datacontract.org/2004/07/System.Collections.Generic\">" +
                     "<a:KeyValuePairOfstringanyType>" +
@@ -424,7 +441,7 @@ namespace Xrm.Sdk
                           "<a:Id>{0}</a:Id>" +
                           "<a:LogicalName>{1}</a:LogicalName>" +
                           "<a:Name i:nil=\"true\" />" +
-                        "</c:value>"+ 
+                        "</c:value>"+
                       "</a:KeyValuePairOfstringanyType>"+
                       "<a:KeyValuePairOfstringanyType>"+
                         "<c:key>State</c:key>"+
@@ -561,9 +578,17 @@ namespace Xrm.Sdk
                         return new RetrieveMetadataChangesResponse(response);
                     case "RetrieveRelationship":
                         return new RetrieveRelationshipResponse(response);
+                    default:
+                        // Allow custom actions/message types to be registered
+                        if (ExecuteMessageResponseTypes.ContainsKey(type))
+                        {
+                            Type responseType = ExecuteMessageResponseTypes[type];
+                            OrganizationResponse exectueResponse = (OrganizationResponse)Type.CreateInstance(responseType, response);
+                            return exectueResponse;
+                        }
+                        else return null;
 
                 }
-                return null;
             }
             else
             {
@@ -571,7 +596,7 @@ namespace Xrm.Sdk
             }
 
         }
-       
+
         /// <summary>
         /// Gets the SOAP Xml to send to the server
         /// </summary>
@@ -589,7 +614,7 @@ namespace Xrm.Sdk
         private static string GetServerUrl()
         {
             // If we have the getClientUrl function (CRM2011 UR8+ & CRM2013, then use it)
-            if (Script.Literal("typeof(Xrm.Page.context.getServerUrl)")=="undefined")
+            if (Script.Literal("typeof(Xrm.Page.context.getClientUrl)")=="undefined")
             {
                 Context context = Page.Context;
                 string crmServerUrl;
@@ -608,7 +633,7 @@ namespace Xrm.Sdk
             }
             else
             {
-                return Page.Context.GetServerUrl();
+                return Page.Context.GetClientUrl();
             }
         }
 
@@ -621,14 +646,17 @@ namespace Xrm.Sdk
             string msg = null;
             XmlHttpRequest xmlHttpRequest = new XmlHttpRequest();
 
-            // Script.Literal("{0}.withCredentials = true;", xmlHttpRequest);
+
 
             xmlHttpRequest.Open("POST", GetServerUrl() + "/XRMServices/2011/Organization.svc/web", isAsync);
             xmlHttpRequest.SetRequestHeader("SOAPAction", "http://schemas.microsoft.com/xrm/2011/Contracts/Services/IOrganizationService/" + action);
-            xmlHttpRequest.SetRequestHeader("Content-Type", "text/xml; charset=utf-8"); 
+            xmlHttpRequest.SetRequestHeader("Content-Type", "text/xml; charset=utf-8");
 
-            Script.Literal("{0}.withCredentials = true;", xmlHttpRequest);
-
+            // This is only needed when debugging via localhost - and accessing the CRM webservices cross domain in chrome
+            if (WithCredentials)
+            {
+                Script.Literal("{0}.withCredentials = true;", xmlHttpRequest);
+            }
 
             if (isAsync)
             {
@@ -669,10 +697,10 @@ namespace Xrm.Sdk
             else
             {
                 xmlHttpRequest.Send(xml);
-                
+
                 // Capture the result
                 XmlDocument resultXml = xmlHttpRequest.ResponseXml;
-               
+
                 // Check for errors.
                 if (xmlHttpRequest.Status != 200)
                 {

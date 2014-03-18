@@ -45,7 +45,7 @@ namespace SparkleXrm.GridEditor
             DateTime dateValue = (DateTime)value;
             return DateTimeEx.FormatDateSpecific(dateValue, dateFormat);
         }
-
+        
         private jQueryObject _input;
         private jQueryObject _container;
         private DateTime _defaultValue=null;
@@ -56,20 +56,37 @@ namespace SparkleXrm.GridEditor
 
         public XrmDateEditor(EditorArguments args) : base(args)
         {
-       
-           
+
+            XrmDateEditor self = this;
+
             _container = jQuery.FromHtml("<div ><table class='inline-edit-container' cellspacing='0' cellpadding='0'><tr>" + 
                 "<td><INPUT type=text class='sparkle-input-inline' /></td>" +
                 "<td class='lookup-button-td'><input type=button class='sparkle-imagestrip-inlineedit_calendar_icon' /></td></tr></table></div>");
             _container.AppendTo(_args.Container);
             
             _input = _container.Find(".sparkle-input-inline");
+            _input.Bind("keydown.nav", delegate(jQueryEvent e)
+            {
+                if (!_calendarOpen && (e.Which == 38 || e.Which == 40) && e.CtrlKey) // Ctrl-Up/Down shows date picker
+                {
+                    _input.Plugin<DatePickerPlugIn>().DatePicker(DatePickerMethod2.Show);
+                    e.StopImmediatePropagation();
+                }
+                else if (_calendarOpen && e.Which == 13)
+                {            
+                    e.PreventDefault();              
+                }
+
+            });
             jQueryObject selectButton = _container.Find(".sparkle-imagestrip-inlineedit_calendar_icon");
            
             
             _input.Focus().Select();
-            DatePickerOptions options = new DatePickerOptions();
-            DatePickerOptions2 options2 = (DatePickerOptions2)(object)options;
+  
+            DatePickerOptions2 options2 = new DatePickerOptions2();
+            options2.ShowOtherMonths = true;
+            options2.ShowOn = ""; // Date Pickers in CRM do not show when they are focused - you click the button
+            options2.FirstDay = OrganizationServiceProxy.OrganizationSettings != null ? OrganizationServiceProxy.OrganizationSettings.WeekStartDayCode.Value.Value : 0;
             options2.BeforeShow = delegate()
             {
                 this._calendarOpen = true;
@@ -80,20 +97,27 @@ namespace SparkleXrm.GridEditor
                 this._calendarOpen = false;
                 _selectedValue = GetSelectedValue();
             };
+            options2.OnSelect = delegate(string dateString, object instance)
+            {
+                // Select the date text field when selecting a date
+                Focus();
+              
+            };
              
             if (OrganizationServiceProxy.UserSettings != null)
             {
                 _dateFormat = OrganizationServiceProxy.UserSettings.DateFormatString;
             }
 
-            options.DateFormat = _dateFormat;
+            options2.DateFormat = _dateFormat;
 
-            _input.Plugin<DatePickerObject>().DatePicker(options);
+            _input.Plugin<DatePickerPlugIn>().DatePicker(options2);
 
             // Wire up the date picker button
             selectButton.Click(delegate(jQueryEvent e){
               
                 _input.Plugin<DatePickerPlugIn>().DatePicker(DatePickerMethod2.Show);
+                Focus();
             });
 
             //_input.Width(_input.GetWidth() - 24);
@@ -104,6 +128,7 @@ namespace SparkleXrm.GridEditor
             ((jQueryObject)Script.Literal("$.datepicker.dpDiv")).Stop(true, true);
             _input.Plugin<DatePickerPlugIn>().DatePicker(DatePickerMethod2.Hide);
             _input.Plugin<DatePickerPlugIn>().DatePicker(DatePickerMethod2.Destroy);
+            Hide(); // Ensure the calendar is hidden when ending an edit
             _container.Remove();
         }
 
@@ -112,12 +137,13 @@ namespace SparkleXrm.GridEditor
             if (_calendarOpen) {
                 ((jQueryObject)Script.Literal("$.datepicker.dpDiv")).Stop(true, true).Show();
             }
+            
         }
 
         public override void Hide()
         {
             if (_calendarOpen) {
-                ((jQueryObject)Script.Literal("s.datepicker.dpDiv")).Stop(true, true).Hide();
+                ((jQueryObject)Script.Literal("$.datepicker.dpDiv")).Stop(true, true).Hide();
             }
         }
 
@@ -183,8 +209,15 @@ namespace SparkleXrm.GridEditor
         }
         private DateTime GetSelectedValue()
         {
-            DateTime selectedValue = (DateTime)_input.Plugin<DatePickerObject>().DatePicker(DatePickerMethod.GetDate);
-
+            DateTime selectedValue = null;
+            if (!_calendarOpen)
+            {
+                selectedValue = DateTimeEx.ParseDateSpecific(_input.GetValue(), _dateFormat);
+            }
+            else
+            {
+                selectedValue = (DateTime)_input.Plugin<DatePickerObject>().DatePicker(DatePickerMethod.GetDate);
+            }
             return selectedValue;
         }
         private void SetSelectedValue(DateTime date)

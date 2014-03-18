@@ -67,6 +67,7 @@
     <Compile Include="NumberEx.cs" />
     <Compile Include="Sdk\Attribute.cs" />
     <Compile Include="Sdk\AttributeTypes.cs" />
+    <Compile Include="Sdk\CoreEntities\OrganizationSettings.cs" />
     <Compile Include="Sdk\CoreEntities\UserSettings.cs" />
     <Compile Include="Sdk\DataCollectionOfEntity.cs" />
     <Compile Include="Sdk\DateTime.cs" />
@@ -142,6 +143,8 @@
     <Compile Include="Sdk\Messages\RetrieveRelationshipRequest.cs" />
     <Compile Include="Sdk\Messages\RetrieveRelationshipResponse.cs" />
     <Compile Include="Sdk\Ribbon\RibbonButton.cs" />
+    <Compile Include="Sdk\Ribbon\RibbonControl.cs" />
+    <Compile Include="Sdk\Ribbon\RibbonFlyoutAnchor.cs" />
     <Compile Include="Sdk\Ribbon\RibbonMenu.cs" />
     <Compile Include="Sdk\Ribbon\RibbonMenuSection.cs" />
     <Compile Include="Sdk\XmlHelper.cs" />
@@ -149,6 +152,7 @@
     <Compile Include="Services\OrganizationServiceCache.cs" />
     <Compile Include="Sparkle\Page.cs" />
     <Compile Include="StringEx.cs" />
+    <Compile Include="TaskIterrator.cs" />
     <Compile Include="XrmImport\Page\Client.cs" />
     <Compile Include="XrmImport\Page\ClientStateType.cs" />
     <Compile Include="XrmImport\Page\ClientType.cs" />
