@@ -58,7 +58,9 @@
     <DocumentationFile>bin\Release\SparkleXrmUI.xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="CustomBinding\EnterKeyBinding.cs" />
+    <Compile Include="CustomBinding\EnterKeyBinding.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="CustomBinding\ValueBinding.cs" />
     <Compile Include="CustomBinding\XrmCurrencySymbolBinding.cs" />
     <Compile Include="CustomBinding\XrmMoneyBinding.cs" />

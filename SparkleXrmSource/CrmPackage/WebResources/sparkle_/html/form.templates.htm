@@ -129,7 +129,13 @@ TEMPLATE: Field (sparkle-form-field)
         <!--/ko-->
         <!--ko if:type=='multiline-text'-->
         <div class="sparkle-input-Container" data-bind="visible: visible">
+             <!--ko if:typeof rows ==='undefined'-->
             <textarea data-bind="value: field, valueUpdate: 'keyup', disable: disable" class="sparkle-Input sparkle-Text" rows="5"></textarea>
+            <!--/ko-->
+             <!--ko if:typeof rows != 'undefined'-->
+            <textarea data-bind="value: field, valueUpdate: 'keyup', disable: disable, rows: rows" class="sparkle-Input sparkle-Text"></textarea>
+            <!--/ko-->
+
         </div>
         <!--/ko-->
     </td>

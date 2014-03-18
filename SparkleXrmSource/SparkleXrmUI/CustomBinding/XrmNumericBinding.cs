@@ -34,6 +34,18 @@ namespace SparkleXrm.CustomBinding
                
             };
 
+            //ignore Enter key
+            textBox.Keydown(delegate(jQueryEvent e)
+            {
+                //prevent return action
+                if (e.Which == 13)
+                {
+                    e.PreventDefault();
+                    e.StopPropagation();
+                }
+            });
+
+
             textBox.Change(onChangeHandler);
             
             // Stop further binding
