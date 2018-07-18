@@ -1,8 +1,7 @@
 //! SparkleXrmUI.debug.js
 //
-waitForScripts("xrmui",["mscorlib","xrm","jquery", "jquery-ui"],
-function () {
-
+window._loadedScripts = window._loadedScripts || {};
+window._loadedScripts['xrmui'] = true;
 (function($){
 
 Type.registerNamespace('SparkleXrm.CustomBinding');
@@ -37,7 +36,7 @@ SparkleXrm.CustomBinding.XrmCurrencySymbolBinding = function SparkleXrm_CustomBi
 SparkleXrm.CustomBinding.XrmCurrencySymbolBinding.getCurrencySymbol = function SparkleXrm_CustomBinding_XrmCurrencySymbolBinding$getCurrencySymbol(valueAccessor) {
     var value = ko.utils.unwrapObservable(valueAccessor());
     if (value != null && value.id != null) {
-        return Xrm.NumberEx.getCurrencySymbol(value.id);
+        return SparkleXrm.NumberEx.getCurrencySymbol(value.id);
     }
     return '';
 }
@@ -64,7 +63,7 @@ SparkleXrm.CustomBinding.XrmMoneyBinding = function SparkleXrm_CustomBinding_Xrm
     SparkleXrm.CustomBinding.XrmMoneyBinding.initializeBase(this);
 }
 SparkleXrm.CustomBinding.XrmMoneyBinding._getNumberFormatInfo$1 = function SparkleXrm_CustomBinding_XrmMoneyBinding$_getNumberFormatInfo$1(allBindingsAccessor) {
-    var format = Xrm.NumberEx.getCurrencyEditFormatInfo();
+    var format = SparkleXrm.NumberEx.getCurrencyEditFormatInfo();
     if (allBindingsAccessor()['minvalue'] == null) {
         format.minValue = -2147483648;
     }
@@ -81,7 +80,7 @@ SparkleXrm.CustomBinding.XrmMoneyBinding._getNumberFormatInfo$1 = function Spark
 }
 SparkleXrm.CustomBinding.XrmMoneyBinding._formatNumber$1 = function SparkleXrm_CustomBinding_XrmMoneyBinding$_formatNumber$1(value, format) {
     if (value != null) {
-        return Xrm.NumberEx.format(value.value, format);
+        return SparkleXrm.NumberEx.format(value.value, format);
     }
     else {
         return '';
@@ -90,10 +89,13 @@ SparkleXrm.CustomBinding.XrmMoneyBinding._formatNumber$1 = function SparkleXrm_C
 SparkleXrm.CustomBinding.XrmMoneyBinding._trySetObservable$1 = function SparkleXrm_CustomBinding_XrmMoneyBinding$_trySetObservable$1(valueAccessor, inputField, value, format) {
     var observable = valueAccessor();
     var isValid = true;
-    var numericValue = Xrm.NumberEx.parse(value, format);
+    var numericValue = SparkleXrm.NumberEx.parse(value, format);
     if (!isNaN(numericValue) && numericValue >= format.minValue && numericValue <= format.maxValue) {
-        numericValue = Xrm.NumberEx.round(numericValue, format.precision);
-        var newValue = new Xrm.Sdk.Money(numericValue);
+        var newValue = null;
+        if (numericValue != null) {
+            numericValue = SparkleXrm.NumberEx.round(numericValue, format.precision);
+            newValue = new SparkleXrm.Sdk.Money(numericValue);
+        }
         observable(newValue);
         if ((typeof(observable.isValid)) !== 'undefined') {
             isValid = !!(observable).isValid();
@@ -101,7 +103,6 @@ SparkleXrm.CustomBinding.XrmMoneyBinding._trySetObservable$1 = function SparkleX
         if (isValid) {
             var formattedNumber = SparkleXrm.CustomBinding.XrmMoneyBinding._formatNumber$1(newValue, format);
             inputField.val(formattedNumber);
-            inputField.blur();
         }
     }
     else {
@@ -132,7 +133,7 @@ SparkleXrm.CustomBinding.XrmMoneyBinding.prototype = {
         var interceptAccesor = function() {
             var value = (valueAccessor())();
             if (value != null) {
-                return Xrm.NumberEx.format(value.value, format);
+                return SparkleXrm.NumberEx.format(value.value, format);
             }
             else {
                 return '';
@@ -150,7 +151,7 @@ SparkleXrm.CustomBinding.XrmNumericBinding = function SparkleXrm_CustomBinding_X
     SparkleXrm.CustomBinding.XrmNumericBinding.initializeBase(this);
 }
 SparkleXrm.CustomBinding.XrmNumericBinding._getNumberFormatInfo$1 = function SparkleXrm_CustomBinding_XrmNumericBinding$_getNumberFormatInfo$1(allBindingsAccessor) {
-    var format = Xrm.NumberEx.getNumberFormatInfo();
+    var format = SparkleXrm.NumberEx.getNumberFormatInfo();
     format.precision = parseInt(allBindingsAccessor()['precision']);
     if (allBindingsAccessor()['minvalue'] == null) {
         format.minValue = -2147483648;
@@ -168,7 +169,7 @@ SparkleXrm.CustomBinding.XrmNumericBinding._getNumberFormatInfo$1 = function Spa
 }
 SparkleXrm.CustomBinding.XrmNumericBinding._formatNumber$1 = function SparkleXrm_CustomBinding_XrmNumericBinding$_formatNumber$1(value, format) {
     if (value != null) {
-        return Xrm.NumberEx.format(value, format);
+        return SparkleXrm.NumberEx.format(value, format);
     }
     else {
         return '';
@@ -177,9 +178,11 @@ SparkleXrm.CustomBinding.XrmNumericBinding._formatNumber$1 = function SparkleXrm
 SparkleXrm.CustomBinding.XrmNumericBinding._trySetObservable$1 = function SparkleXrm_CustomBinding_XrmNumericBinding$_trySetObservable$1(valueAccessor, inputField, value, format) {
     var observable = valueAccessor();
     var isValid = true;
-    var numericValue = Xrm.NumberEx.parse(value, format);
+    var numericValue = SparkleXrm.NumberEx.parse(value, format);
     if (!isNaN(numericValue) && numericValue >= format.minValue && numericValue <= format.maxValue) {
-        numericValue = Xrm.NumberEx.round(numericValue, format.precision);
+        if (numericValue != null) {
+            numericValue = SparkleXrm.NumberEx.round(numericValue, format.precision);
+        }
         observable(numericValue);
         if ((typeof(observable.isValid)) !== 'undefined') {
             isValid = !!(observable).isValid();
@@ -187,7 +190,6 @@ SparkleXrm.CustomBinding.XrmNumericBinding._trySetObservable$1 = function Sparkl
         if (isValid) {
             var formattedNumber = SparkleXrm.CustomBinding.XrmNumericBinding._formatNumber$1(numericValue, format);
             inputField.val(formattedNumber);
-            inputField.blur();
         }
     }
     else {
@@ -217,7 +219,7 @@ SparkleXrm.CustomBinding.XrmNumericBinding.prototype = {
         var interceptAccesor = function() {
             var value = (valueAccessor())();
             if (value != null) {
-                return Xrm.NumberEx.format(value, format);
+                return SparkleXrm.NumberEx.format(value, format);
             }
             else {
                 return '';
@@ -245,7 +247,7 @@ SparkleXrm.CustomBinding.XrmOptionSetBinding.prototype = {
             if (!String.isNullOrEmpty(newValue)) {
                 newValueInt = parseInt(newValue);
             }
-            var newValueOptionSetValue = new Xrm.Sdk.OptionSetValue(newValueInt);
+            var newValueOptionSetValue = new SparkleXrm.Sdk.OptionSetValue(newValueInt);
             newValueOptionSetValue.name = select.find('option:selected').text();
             observable(newValueOptionSetValue);
         };
@@ -261,7 +263,7 @@ SparkleXrm.CustomBinding.XrmOptionSetBinding.prototype = {
         }
         else {
             optionsValueAccessor = function() {
-                return Xrm.Sdk.Metadata.MetadataCache.getOptionSetValues(optionSetOptions.entityLogicalName, optionSetOptions.attributeLogicalName, optionSetOptions.allowEmpty);
+                return SparkleXrm.Sdk.Metadata.MetadataCache.getOptionSetValues(optionSetOptions.entityLogicalName, optionSetOptions.attributeLogicalName, optionSetOptions.allowEmpty);
             };
         }
         ko.bindingHandlers.options.update(select.get(0),optionsValueAccessor,allBindingsAccessor,viewModel,context);
@@ -339,6 +341,7 @@ SparkleXrm.CustomBinding.AutocompleteBinding.prototype = {
     init: function SparkleXrm_CustomBinding_AutocompleteBinding$init(element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var inputField = $(element);
         var options = (allBindingsAccessor()['autocompleteOptions']);
+        options.position = { collision: 'fit' };
         options.select = function(e, uiEvent) {
             var value = (uiEvent.item)['value'].toString();
             SparkleXrm.CustomBinding.AutocompleteBinding._trySetObservable$1(valueAccessor, inputField, value);
@@ -397,58 +400,159 @@ SparkleXrm.CustomBinding.XrmBooleanBinding.prototype = {
 SparkleXrm.CustomBinding.XrmLookupBinding = function SparkleXrm_CustomBinding_XrmLookupBinding() {
     SparkleXrm.CustomBinding.XrmLookupBinding.initializeBase(this);
 }
-SparkleXrm.CustomBinding.XrmLookupBinding._trySetObservable$1 = function SparkleXrm_CustomBinding_XrmLookupBinding$_trySetObservable$1(valueAccessor, inputField, value) {
+SparkleXrm.CustomBinding.XrmLookupBinding._isItemSelectable$1 = function SparkleXrm_CustomBinding_XrmLookupBinding$_isItemSelectable$1(item) {
+    var data = item.data;
+    return data != null && data !== 'footerlink';
+}
+SparkleXrm.CustomBinding.XrmLookupBinding._getExtraColumns = function SparkleXrm_CustomBinding_XrmLookupBinding$_getExtraColumns(columnAttributes, fetchResult, results, i) {
+    if (columnAttributes != null) {
+        var columnValues = [];
+        var first = true;
+        var $enum1 = ss.IEnumerator.getEnumerator(columnAttributes);
+        while ($enum1.moveNext()) {
+            var attribute = $enum1.current;
+            if (first) {
+                first = false;
+                continue;
+            }
+            var value = '';
+            var record = fetchResult.get_entities().get_item(i);
+            if (Object.keyExists(record.formattedValues, attribute + 'name')) {
+                value = record.formattedValues[attribute + 'name'];
+            }
+            else {
+                var attributeValue = record.getAttributeValue(attribute);
+                if (attributeValue != null) {
+                    switch (Type.getInstanceType(attributeValue).get_name()) {
+                        case 'EntityReference':
+                            value = (attributeValue).name;
+                            break;
+                        default:
+                            value = attributeValue.toString();
+                            break;
+                    }
+                }
+            }
+            if (value != null && value.length > 0) {
+                columnValues.add(value);
+            }
+        }
+        results[i].columnValues = columnValues;
+    }
+}
+SparkleXrm.CustomBinding.XrmLookupBinding._trySetObservable$1 = function SparkleXrm_CustomBinding_XrmLookupBinding$_trySetObservable$1(valueAccessor, inputField, value, setFocus) {
     var observable = valueAccessor();
     var isValid = true;
     observable(value);
     if ((typeof(observable.isValid)) !== 'undefined') {
         isValid = !!(observable).isValid();
     }
-    if (isValid) {
+    if (isValid && setFocus) {
         inputField.blur();
+        inputField.focus();
     }
 }
 SparkleXrm.CustomBinding.XrmLookupBinding.prototype = {
     
     init: function SparkleXrm_CustomBinding_XrmLookupBinding$init(element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var footerButton = allBindingsAccessor()['footerButton'];
+        var showFooter = allBindingsAccessor()['showFooter'];
         var container = $(element);
         var inputField = container.find('.sparkle-input-lookup-part');
         var selectButton = container.find('.sparkle-input-lookup-button-part');
-        var _value = new Xrm.Sdk.EntityReference(null, null, null);
+        var _value = new SparkleXrm.Sdk.EntityReference(null, null, null);
         var options = {};
         options.minLength = 100000;
         options.delay = 0;
+        options.position = { collision: 'fit' };
         var justSelected = false;
-        options.select = function(e, uiEvent) {
-            var item = uiEvent.item;
+        var totalRecordsReturned = 0;
+        var setValue = function(item, setFocus) {
             if (_value == null) {
-                _value = new Xrm.Sdk.EntityReference(null, null, null);
+                _value = new SparkleXrm.Sdk.EntityReference(null, null, null);
             }
             var value = item.label;
             inputField.val(value);
             _value.id = (item.value);
             _value.name = item.label;
-            _value.logicalName = 'activitypointer';
+            _value.logicalName = item.data;
             justSelected = true;
-            SparkleXrm.CustomBinding.XrmLookupBinding._trySetObservable$1(valueAccessor, inputField, _value);
-            return false;;
+            SparkleXrm.CustomBinding.XrmLookupBinding._trySetObservable$1(valueAccessor, inputField, _value, setFocus);
+        };
+        options.select = function(e, uiEvent) {
+            var item = uiEvent.item;
+            var data = (item.data);
+            if (data === 'footerlink' || data == null) {
+                footerButton.onClick(item);
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;;
+            }
+            else {
+                setValue(item, true);
+                return false;;
+            }
+        };
+        options.open = function(e, o) {
+            if (showFooter && totalRecordsReturned > 0) {
+                var menu = inputField.autocomplete('widget');
+                SparkleXrm.GridEditor.XrmLookupEditor.addFooter(menu, totalRecordsReturned);
+            }
+        };
+        options.close = function(e, o) {
+            var menu = inputField.autocomplete('widget');
+            var footer = menu.next();
+            if (footer.length > 0 || footer.hasClass('sparkle-menu-footer')) {
+                footer.hide();
+            }
         };
         var queryCommand = (allBindingsAccessor()['queryCommand']);
         var nameAttribute = (allBindingsAccessor()['nameAttribute']);
         var idAttribute = (allBindingsAccessor()['idAttribute']);
         var typeCodeAttribute = (allBindingsAccessor()['typeCodeAttribute']);
+        var columnAttributes = null;
+        var columns = nameAttribute.split(',');
+        if (columns.length > 1) {
+            columnAttributes = columns;
+            nameAttribute = columnAttributes[0];
+        }
         var queryDelegate = function(request, response) {
             var queryCallBack = function(fetchResult) {
-                var results = new Array(fetchResult.get_entities().get_count());
-                for (var i = 0; i < fetchResult.get_entities().get_count(); i++) {
+                var recordsFound = fetchResult.get_entities().get_count();
+                var noRecordsFound = !recordsFound;
+                var results = new Array(recordsFound + ((footerButton != null) ? 1 : 0) + ((noRecordsFound) ? 1 : 0));
+                for (var i = 0; i < recordsFound; i++) {
                     results[i] = {};
                     results[i].label = fetchResult.get_entities().get_item(i).getAttributeValue(nameAttribute);
                     results[i].value = fetchResult.get_entities().get_item(i).getAttributeValue(idAttribute);
+                    results[i].data = fetchResult.get_entities().get_item(i).logicalName;
+                    SparkleXrm.CustomBinding.XrmLookupBinding._getExtraColumns(columnAttributes, fetchResult, results, i);
                     var typeCodeName = fetchResult.get_entities().get_item(i).logicalName;
                     if (!String.isNullOrEmpty(typeCodeAttribute)) {
                         typeCodeName = fetchResult.get_entities().get_item(i).getAttributeValue(typeCodeAttribute).toString();
                     }
-                    results[i].image = Xrm.Sdk.Metadata.MetadataCache.getSmallIconUrl(typeCodeName);
+                    results[i].image = SparkleXrm.Sdk.Metadata.MetadataCache.getSmallIconUrl(typeCodeName);
+                }
+                if (fetchResult.get_totalRecordCount() > fetchResult.get_entities().get_count()) {
+                    totalRecordsReturned = fetchResult.get_totalRecordCount();
+                }
+                else {
+                    totalRecordsReturned = fetchResult.get_entities().get_count();
+                }
+                var itemsCount = recordsFound;
+                if (noRecordsFound) {
+                    var noRecordsItem = {};
+                    noRecordsItem.label = SparkleResourceStrings.NoRecordsFound;
+                    results[itemsCount] = noRecordsItem;
+                    itemsCount++;
+                }
+                if (footerButton != null) {
+                    var addNewLink = {};
+                    addNewLink.label = footerButton.label;
+                    addNewLink.image = footerButton.image;
+                    addNewLink.columnValues = null;
+                    addNewLink.data = 'footerlink';
+                    results[itemsCount] = addNewLink;
                 }
                 response(results);
                 var disableOption = {};
@@ -463,21 +567,65 @@ SparkleXrm.CustomBinding.XrmLookupBinding.prototype = {
         };
         inputField = inputField.autocomplete(options);
         (inputField.data('ui-autocomplete'))._renderItem = function(ul, item) {
-            return $('<li>').append("<a class='sparkle-menu-item'><span class='sparkle-menu-item-img'><img src='" + item.image + "'/></span><span class='sparkle-menu-item-label'>" + item.label + '</span></a>').appendTo(ul);
+            if (item.data == null) {
+                return $("<li class='ui-state-disabled'>" + item.label + '</li>').appendTo(ul);
+            }
+            var html = "<a class='sparkle-menu-item'><span class='sparkle-menu-item-img'>";
+            if (item.image != null) {
+                html += "<img src='" + item.image + "'/>";
+            }
+            html += "</span><span class='sparkle-menu-item-label'>" + item.label + '</span><br>';
+            if (item.columnValues != null && item.columnValues.length > 0) {
+                var $enum1 = ss.IEnumerator.getEnumerator(item.columnValues);
+                while ($enum1.moveNext()) {
+                    var value = $enum1.current;
+                    html += "<span class='sparkle-menu-item-moreinfo'>" + value + '</span>';
+                }
+            }
+            html += '</a>';
+            return $('<li>').append(html).appendTo(ul);
         };
         selectButton.click(function(e) {
             var enableOption = {};
             enableOption.minLength = 0;
+            inputField.focus();
             inputField.autocomplete(enableOption);
             inputField.autocomplete('search');
         });
         inputField.change(function(e) {
-            if (inputField.val() !== _value.name) {
-                SparkleXrm.CustomBinding.XrmLookupBinding._trySetObservable$1(valueAccessor, inputField, null);
+            var inputValue = inputField.val();
+            if (inputValue !== _value.name) {
+                SparkleXrm.CustomBinding.XrmLookupBinding._trySetObservable$1(valueAccessor, inputField, null, false);
+                var lookup = {};
+                lookup.term = inputValue;
+                var lookupResults = function(results) {
+                    var selectableItems = 0;
+                    if (results != null) {
+                        var $enum1 = ss.IEnumerator.getEnumerator(results);
+                        while ($enum1.moveNext()) {
+                            var item = $enum1.current;
+                            if (SparkleXrm.CustomBinding.XrmLookupBinding._isItemSelectable$1(item)) {
+                                selectableItems++;
+                            }
+                            if (selectableItems > 2) {
+                                break;
+                            }
+                        }
+                    }
+                    if (selectableItems === 1) {
+                        setValue(results[0], false);
+                    }
+                    else {
+                        inputField.val('');
+                    }
+                };
+                queryDelegate(lookup, lookupResults);
             }
         });
         var disposeCallBack = function() {
-            $(element).autocomplete("destroy");
+            if ($(inputField).data('ui-autocomplete')!=undefined) {
+                $(inputField).autocomplete("destroy");
+            }
         };
         ko.utils.domNodeDisposal.addDisposeCallback(element, disposeCallBack);
         ko.bindingHandlers['validationCore'].init(element, valueAccessor, allBindingsAccessor, null, null);
@@ -548,16 +696,17 @@ SparkleXrm.CustomBinding.XrmDatePickerBinding = function SparkleXrm_CustomBindin
 SparkleXrm.CustomBinding.XrmDatePickerBinding.prototype = {
     
     init: function SparkleXrm_CustomBinding_XrmDatePickerBinding$init(element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var dateOptions = (allBindingsAccessor()['dateOptions']);
         var container = $(element);
         var dateTime = container.find('.sparkle-input-datepicker-part');
         var dateButton = container.find('.sparkle-input-datepicker-button-part');
         var options = {};
         options.showOn = '';
         options.buttonImageOnly = true;
-        options.firstDay = (Xrm.Sdk.OrganizationServiceProxy.organizationSettings != null) ? Xrm.Sdk.OrganizationServiceProxy.organizationSettings.weekstartdaycode.value : 0;
+        options.firstDay = (SparkleXrm.Sdk.OrganizationServiceProxy.organizationSettings != null) ? SparkleXrm.Sdk.OrganizationServiceProxy.organizationSettings.weekstartdaycode.value : 0;
         var dateFormat = 'dd/MM/yy';
-        if (Xrm.Sdk.OrganizationServiceProxy.userSettings != null) {
-            dateFormat = Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring;
+        if (SparkleXrm.Sdk.OrganizationServiceProxy.userSettings != null) {
+            dateFormat = SparkleXrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring;
         }
         options.dateFormat = dateFormat;
         dateTime.datepicker(options);
@@ -573,7 +722,10 @@ SparkleXrm.CustomBinding.XrmDatePickerBinding.prototype = {
             if (isValid) {
                 var selectedDate = dateTime.datepicker('getDate');
                 var currentValue = observable();
-                Xrm.Sdk.DateTimeEx.setTime(selectedDate, currentValue);
+                if (currentValue == null && dateOptions != null) {
+                    currentValue = new Date(1900, 1, 1, (dateOptions.hour != null) ? dateOptions.hour : 0, (dateOptions.minute != null) ? dateOptions.minute : 0);
+                }
+                SparkleXrm.Sdk.DateTimeEx.setTime(selectedDate, currentValue);
                 observable(selectedDate);
             }
             dateTime.blur();
@@ -627,7 +779,6 @@ SparkleXrm.CustomBinding.XrmDurationBinding._trySetObservable$1 = function Spark
             isValid = !!(observable).isValid();
         }
         if (isValid) {
-            inputField.blur();
         }
     }
     else {
@@ -669,6 +820,7 @@ SparkleXrm.CustomBinding.XrmDurationBinding.prototype = {
         var inputField = container.find('.sparkle-input-duration-part');
         var selectButton = container.find('.sparkle-input-duration-button-part');
         var options = {};
+        options.position = { collision: 'fit' };
         options.source = [ '1 m', '2 m', '1 h', '2 h', '1 d' ];
         options.delay = 0;
         options.minLength = 0;
@@ -755,7 +907,7 @@ SparkleXrm.CustomBinding.XrmTimeOfDayBinding = function SparkleXrm_CustomBinding
 SparkleXrm.CustomBinding.XrmTimeOfDayBinding._trySetObservable$1 = function SparkleXrm_CustomBinding_XrmTimeOfDayBinding$_trySetObservable$1(valueAccessor, inputField, value) {
     var observable = valueAccessor();
     var isValid = true;
-    var testDate = Xrm.Sdk.DateTimeEx.addTimeToDate(observable(), value);
+    var testDate = SparkleXrm.Sdk.DateTimeEx.addTimeToDate(observable(), value);
     var newValue = (testDate == null) ? '' : testDate.toString();
     var originalValue = (observable() == null) ? '' : observable().toString();
     if (newValue === originalValue) {
@@ -773,7 +925,6 @@ SparkleXrm.CustomBinding.XrmTimeOfDayBinding._trySetObservable$1 = function Spar
             isValid = !!(observable).isValid();
         }
         if (isValid) {
-            inputField.blur();
         }
     }
 }
@@ -787,8 +938,8 @@ SparkleXrm.CustomBinding.XrmTimeOfDayBinding._formatterUpdate$1 = function Spark
 }
 SparkleXrm.CustomBinding.XrmTimeOfDayBinding._getFormatString$1 = function SparkleXrm_CustomBinding_XrmTimeOfDayBinding$_getFormatString$1() {
     var timeFormatString = 'h:mm tt';
-    if (Xrm.Sdk.OrganizationServiceProxy.userSettings != null) {
-        timeFormatString = Xrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring;
+    if (SparkleXrm.Sdk.OrganizationServiceProxy.userSettings != null) {
+        timeFormatString = SparkleXrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring;
     }
     return timeFormatString;
 }
@@ -800,6 +951,7 @@ SparkleXrm.CustomBinding.XrmTimeOfDayBinding.prototype = {
         var inputField = container.find('.sparkle-input-timeofday-part');
         var selectButton = container.find('.sparkle-input-timeofday-button-part');
         var options = SparkleXrm.GridEditor.XrmTimeEditor.getTimePickerAutoCompleteOptions(formatString);
+        options.position = { collision: 'fit' };
         options.select = function(e, uiEvent) {
             var value = (uiEvent.item)['value'].toString();
             SparkleXrm.CustomBinding.XrmTimeOfDayBinding._trySetObservable$1(valueAccessor, inputField, value);
@@ -823,7 +975,7 @@ SparkleXrm.CustomBinding.XrmTimeOfDayBinding.prototype = {
         var inputField = container.find('.sparkle-input-timeofday-part');
         var value = ko.utils.unwrapObservable(valueAccessor());
         var formatString = SparkleXrm.CustomBinding.XrmTimeOfDayBinding._getFormatString$1();
-        var formattedValue = Xrm.Sdk.DateTimeEx.formatTimeSpecific(value, formatString);
+        var formattedValue = SparkleXrm.Sdk.DateTimeEx.formatTimeSpecific(value, formatString);
         inputField.val(formattedValue);
     }
 }
@@ -952,7 +1104,7 @@ SparkleXrm.GridEditor.XrmMoneyEditor.formatter = function SparkleXrm_GridEditor_
     if (value != null) {
         var currencySymbol = SparkleXrm.GridEditor.XrmMoneyEditor.getCurrencySymbol((dataContext).transactioncurrencyid);
         var numeric = value;
-        return currencySymbol + ' ' + Xrm.NumberEx.format(numeric.value, columnDef.options);
+        return currencySymbol + ' ' + SparkleXrm.NumberEx.format(numeric.value, columnDef.options);
     }
     else {
         return '';
@@ -961,7 +1113,7 @@ SparkleXrm.GridEditor.XrmMoneyEditor.formatter = function SparkleXrm_GridEditor_
 SparkleXrm.GridEditor.XrmMoneyEditor.bindColumn = function SparkleXrm_GridEditor_XrmMoneyEditor$bindColumn(column, minValue, maxValue) {
     column.editor = SparkleXrm.GridEditor.XrmMoneyEditor.moneyEditor;
     column.formatter = SparkleXrm.GridEditor.XrmMoneyEditor.formatter;
-    var numberFormatInfo = Xrm.NumberEx.getCurrencyEditFormatInfo();
+    var numberFormatInfo = SparkleXrm.NumberEx.getCurrencyEditFormatInfo();
     numberFormatInfo.minValue = minValue;
     numberFormatInfo.maxValue = maxValue;
     column.options = numberFormatInfo;
@@ -969,13 +1121,13 @@ SparkleXrm.GridEditor.XrmMoneyEditor.bindColumn = function SparkleXrm_GridEditor
 }
 SparkleXrm.GridEditor.XrmMoneyEditor.bindReadOnlyColumn = function SparkleXrm_GridEditor_XrmMoneyEditor$bindReadOnlyColumn(column) {
     column.formatter = SparkleXrm.GridEditor.XrmMoneyEditor.formatter;
-    var numberFormatInfo = Xrm.NumberEx.getCurrencyEditFormatInfo();
+    var numberFormatInfo = SparkleXrm.NumberEx.getCurrencyEditFormatInfo();
     column.options = numberFormatInfo;
     return column;
 }
 SparkleXrm.GridEditor.XrmMoneyEditor.getCurrencySymbol = function SparkleXrm_GridEditor_XrmMoneyEditor$getCurrencySymbol(currencyid) {
     if (currencyid != null && currencyid.id != null && currencyid.id.value != null) {
-        return Xrm.NumberEx.getCurrencySymbol(currencyid.id);
+        return SparkleXrm.NumberEx.getCurrencySymbol(currencyid.id);
     }
     return '';
 }
@@ -1010,7 +1162,7 @@ SparkleXrm.GridEditor.XrmMoneyEditor.prototype = {
         var value = item[this._args.column.field];
         this._defaultValue$1 = '';
         if (value != null) {
-            this._defaultValue$1 = Xrm.NumberEx.format(value.value, this._numberFormatInfo$1);
+            this._defaultValue$1 = SparkleXrm.NumberEx.format(value.value, this._numberFormatInfo$1);
         }
         this._input$1.val(this._defaultValue$1);
         this._input$1[0].setAttribute('defaultValue', this._defaultValue$1);
@@ -1022,7 +1174,7 @@ SparkleXrm.GridEditor.XrmMoneyEditor.prototype = {
     },
     
     applyValue: function SparkleXrm_GridEditor_XrmMoneyEditor$applyValue(item, state) {
-        var money = new Xrm.Sdk.Money(Xrm.NumberEx.parse(state, this._numberFormatInfo$1));
+        var money = new SparkleXrm.Sdk.Money(SparkleXrm.NumberEx.parse(state, this._numberFormatInfo$1));
         item[this._args.column.field] = money;
         this.raiseOnChange(item);
     },
@@ -1033,7 +1185,7 @@ SparkleXrm.GridEditor.XrmMoneyEditor.prototype = {
     
     nativeValidation: function SparkleXrm_GridEditor_XrmMoneyEditor$nativeValidation(newValue) {
         var isValid = true;
-        var newValueNumber = Xrm.NumberEx.parse(newValue, this._numberFormatInfo$1);
+        var newValueNumber = SparkleXrm.NumberEx.parse(newValue, this._numberFormatInfo$1);
         isValid = !isNaN(newValueNumber);
         isValid = isValid && (newValueNumber >= this._numberFormatInfo$1.minValue) && (newValueNumber <= this._numberFormatInfo$1.maxValue);
         if (!isValid) {
@@ -1062,7 +1214,7 @@ SparkleXrm.GridEditor.XrmNumberEditor = function SparkleXrm_GridEditor_XrmNumber
 SparkleXrm.GridEditor.XrmNumberEditor.formatter = function SparkleXrm_GridEditor_XrmNumberEditor$formatter(row, cell, value, columnDef, dataContext) {
     if (value != null) {
         var numeric = value;
-        return Xrm.NumberEx.format(numeric, columnDef.options);
+        return SparkleXrm.NumberEx.format(numeric, columnDef.options);
     }
     else {
         return '';
@@ -1071,7 +1223,7 @@ SparkleXrm.GridEditor.XrmNumberEditor.formatter = function SparkleXrm_GridEditor
 SparkleXrm.GridEditor.XrmNumberEditor.bindColumn = function SparkleXrm_GridEditor_XrmNumberEditor$bindColumn(column, minValue, maxValue, precision) {
     column.editor = SparkleXrm.GridEditor.XrmNumberEditor.numberEditor;
     column.formatter = SparkleXrm.GridEditor.XrmNumberEditor.formatter;
-    var numberFormatInfo = Xrm.NumberEx.getNumberFormatInfo();
+    var numberFormatInfo = SparkleXrm.NumberEx.getNumberFormatInfo();
     numberFormatInfo.minValue = minValue;
     numberFormatInfo.maxValue = maxValue;
     numberFormatInfo.precision = precision;
@@ -1080,7 +1232,7 @@ SparkleXrm.GridEditor.XrmNumberEditor.bindColumn = function SparkleXrm_GridEdito
 }
 SparkleXrm.GridEditor.XrmNumberEditor.bindReadOnlyColumn = function SparkleXrm_GridEditor_XrmNumberEditor$bindReadOnlyColumn(column, precision) {
     column.formatter = SparkleXrm.GridEditor.XrmNumberEditor.formatter;
-    var numberFormatInfo = Xrm.NumberEx.getNumberFormatInfo();
+    var numberFormatInfo = SparkleXrm.NumberEx.getNumberFormatInfo();
     numberFormatInfo.precision = precision;
     column.options = numberFormatInfo;
     return column;
@@ -1109,7 +1261,7 @@ SparkleXrm.GridEditor.XrmNumberEditor.prototype = {
     },
     
     loadValue: function SparkleXrm_GridEditor_XrmNumberEditor$loadValue(item) {
-        this._defaultValue$1 = Xrm.NumberEx.format(item[this._args.column.field], this._numberFormatInfo$1);
+        this._defaultValue$1 = SparkleXrm.NumberEx.format(item[this._args.column.field], this._numberFormatInfo$1);
         if (this._defaultValue$1 == null) {
             this._defaultValue$1 = '';
         }
@@ -1123,7 +1275,7 @@ SparkleXrm.GridEditor.XrmNumberEditor.prototype = {
     },
     
     applyValue: function SparkleXrm_GridEditor_XrmNumberEditor$applyValue(item, state) {
-        item[this._args.column.field] = Xrm.NumberEx.parse(state, this._numberFormatInfo$1);
+        item[this._args.column.field] = SparkleXrm.NumberEx.parse(state, this._numberFormatInfo$1);
         this.raiseOnChange(item);
     },
     
@@ -1133,7 +1285,7 @@ SparkleXrm.GridEditor.XrmNumberEditor.prototype = {
     
     nativeValidation: function SparkleXrm_GridEditor_XrmNumberEditor$nativeValidation(newValue) {
         var isValid = true;
-        var newValueNumber = Xrm.NumberEx.parse(newValue, this._numberFormatInfo$1);
+        var newValueNumber = SparkleXrm.NumberEx.parse(newValue, this._numberFormatInfo$1);
         isValid = !isNaN(newValueNumber);
         isValid = isValid && (newValueNumber >= this._numberFormatInfo$1.minValue) && (newValueNumber <= this._numberFormatInfo$1.maxValue);
         if (!isValid) {
@@ -1214,6 +1366,13 @@ SparkleXrm.GridEditor.EntityDataViewModel.prototype = {
         this.sortBy(col);
     },
     
+    getSortColumns: function SparkleXrm_GridEditor_EntityDataViewModel$getSortColumns() {
+        if (this._sortCols == null) {
+            return new Array(0);
+        }
+        return this._sortCols;
+    },
+    
     sortBy: function SparkleXrm_GridEditor_EntityDataViewModel$sortBy(col) {
         this._sortCols.clear();
         this._sortCols.add(col);
@@ -1227,7 +1386,7 @@ SparkleXrm.GridEditor.EntityDataViewModel.prototype = {
                 this._data.reverse();
             }
             this._data.sort(function(a, b) {
-                return Xrm.Sdk.Entity.sortDelegate(col.attributeName, a, b);
+                return SparkleXrm.Sdk.Entity.sortDelegate(col.attributeName, a, b);
             });
             if (!col.ascending) {
                 this._data.reverse();
@@ -1240,7 +1399,7 @@ SparkleXrm.GridEditor.EntityDataViewModel.prototype = {
         var $enum1 = ss.IEnumerator.getEnumerator(this._data);
         while ($enum1.moveNext()) {
             var item = $enum1.current;
-            if (item != null && item.entityState !== Xrm.Sdk.EntityStates.unchanged) {
+            if (item != null && item.entityState !== SparkleXrm.Sdk.EntityStates.unchanged) {
                 dirtyCollection.add(item);
             }
         }
@@ -1248,7 +1407,7 @@ SparkleXrm.GridEditor.EntityDataViewModel.prototype = {
             var $enum2 = ss.IEnumerator.getEnumerator(this.deleteData);
             while ($enum2.moveNext()) {
                 var item = $enum2.current;
-                if (item.entityState === Xrm.Sdk.EntityStates.deleted) {
+                if (item.entityState === SparkleXrm.Sdk.EntityStates.deleted) {
                     dirtyCollection.add(item);
                 }
             }
@@ -1267,7 +1426,13 @@ SparkleXrm.GridEditor.EntityDataViewModel.prototype = {
         return false;
     },
     
+    preProcessResultsData: function SparkleXrm_GridEditor_EntityDataViewModel$preProcessResultsData(results) {
+    },
+    
     refresh: function SparkleXrm_GridEditor_EntityDataViewModel$refresh() {
+        if (String.isNullOrEmpty(this._fetchXml)) {
+            return;
+        }
         if (this._suspendRefresh) {
             return;
         }
@@ -1287,13 +1452,11 @@ SparkleXrm.GridEditor.EntityDataViewModel.prototype = {
                 this.paging.pageNum = 0;
                 firstRowIndex = 0;
             }
-            if (String.isNullOrEmpty(this._fetchXml)) {
-                return;
-            }
-            var parameterisedFetchXml = String.format(this._fetchXml, fetchPageSize, Xrm.Sdk.XmlHelper.encode(this.paging.extraInfo), this.paging.pageNum + 1, orderBy);
-            Xrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(parameterisedFetchXml, ss.Delegate.create(this, function(result) {
+            var parameterisedFetchXml = String.format(this._fetchXml, fetchPageSize, SparkleXrm.Sdk.XmlHelper.encode(this.paging.extraInfo), this.paging.pageNum + 1, orderBy);
+            SparkleXrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(parameterisedFetchXml, ss.Delegate.create(this, function(result) {
                 try {
-                    var results = Xrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, this._entityType);
+                    var results = SparkleXrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, this._entityType);
+                    this.preProcessResultsData(results);
                     var i = firstRowIndex;
                     if (this._lazyLoadPages) {
                         var $enum1 = ss.IEnumerator.getEnumerator(results.get_entities());
@@ -1405,6 +1568,7 @@ SparkleXrm.GridEditor.EntityDataViewModel.prototype = {
             this.__onBeginClearPageCache$1();
         }
         this._data = [];
+        this.paging.extraInfo = null;
     },
     
     get_data: function SparkleXrm_GridEditor_EntityDataViewModel$get_data() {
@@ -1436,7 +1600,7 @@ SparkleXrm.GridEditor.XrmDateEditor = function SparkleXrm_GridEditor_XrmDateEdit
     var options2 = {};
     options2.showOtherMonths = true;
     options2.showOn = '';
-    options2.firstDay = (Xrm.Sdk.OrganizationServiceProxy.organizationSettings != null) ? Xrm.Sdk.OrganizationServiceProxy.organizationSettings.weekstartdaycode.value : 0;
+    options2.firstDay = (SparkleXrm.Sdk.OrganizationServiceProxy.organizationSettings != null) ? SparkleXrm.Sdk.OrganizationServiceProxy.organizationSettings.weekstartdaycode.value : 0;
     options2.beforeShow = ss.Delegate.create(this, function() {
         this._calendarOpen$1 = true;
     });
@@ -1447,8 +1611,8 @@ SparkleXrm.GridEditor.XrmDateEditor = function SparkleXrm_GridEditor_XrmDateEdit
     options2.onSelect = ss.Delegate.create(this, function(dateString, instance) {
         this.focus();
     });
-    if (Xrm.Sdk.OrganizationServiceProxy.userSettings != null) {
-        this._dateFormat$1 = Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring;
+    if (SparkleXrm.Sdk.OrganizationServiceProxy.userSettings != null) {
+        this._dateFormat$1 = SparkleXrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring;
     }
     options2.dateFormat = this._dateFormat$1;
     this._input$1.datepicker(options2);
@@ -1458,20 +1622,40 @@ SparkleXrm.GridEditor.XrmDateEditor = function SparkleXrm_GridEditor_XrmDateEdit
     }));
 }
 SparkleXrm.GridEditor.XrmDateEditor.formatterDateOnly = function SparkleXrm_GridEditor_XrmDateEditor$formatterDateOnly(row, cell, value, columnDef, dataContext) {
-    var dateFormat = columnDef.options;
-    if (Xrm.Sdk.OrganizationServiceProxy.userSettings != null) {
-        dateFormat = Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring;
-    }
+    var dateFormat = SparkleXrm.GridEditor.XrmDateEditor.getDateFormat(columnDef);
     var dateValue = value;
-    return Xrm.Sdk.DateTimeEx.formatDateSpecific(dateValue, dateFormat);
+    return SparkleXrm.Sdk.DateTimeEx.formatDateSpecific(dateValue, dateFormat);
+}
+SparkleXrm.GridEditor.XrmDateEditor.getDateBindingOptions = function SparkleXrm_GridEditor_XrmDateEditor$getDateBindingOptions(columnDef) {
+    var options = columnDef.options;
+    var dateOptions = null;
+    if (options != null && Type.getInstanceType(options) === String) {
+        dateOptions = {};
+        dateOptions.overrideUserDateFormat = columnDef.options;
+        return dateOptions;
+    }
+    else if (options != null) {
+        dateOptions = options;
+    }
+    else {
+        dateOptions = {};
+    }
+    return dateOptions;
+}
+SparkleXrm.GridEditor.XrmDateEditor.getDateFormat = function SparkleXrm_GridEditor_XrmDateEditor$getDateFormat(columnDef) {
+    var dateFormat = SparkleXrm.GridEditor.XrmDateEditor.getDateBindingOptions(columnDef).overrideUserDateFormat;
+    if (dateFormat == null && SparkleXrm.Sdk.OrganizationServiceProxy.userSettings != null) {
+        dateFormat = SparkleXrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring;
+    }
+    return dateFormat;
 }
 SparkleXrm.GridEditor.XrmDateEditor.formatterDateAndTime = function SparkleXrm_GridEditor_XrmDateEditor$formatterDateAndTime(row, cell, value, columnDef, dataContext) {
-    var dateFormat = columnDef.options;
-    if (Xrm.Sdk.OrganizationServiceProxy.userSettings != null) {
-        dateFormat = Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring + ' ' + Xrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring;
+    var dateFormat = SparkleXrm.GridEditor.XrmDateEditor.getDateFormat(columnDef);
+    if (dateFormat != null && SparkleXrm.Sdk.OrganizationServiceProxy.userSettings != null) {
+        dateFormat = SparkleXrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring + ' ' + SparkleXrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring;
     }
     var dateValue = value;
-    return Xrm.Sdk.DateTimeEx.formatDateSpecific(dateValue, dateFormat);
+    return SparkleXrm.Sdk.DateTimeEx.formatDateSpecific(dateValue, dateFormat);
 }
 SparkleXrm.GridEditor.XrmDateEditor.bindColumn = function SparkleXrm_GridEditor_XrmDateEditor$bindColumn(column, dateOnly) {
     column.editor = SparkleXrm.GridEditor.XrmDateEditor.crmDateEditor;
@@ -1539,7 +1723,11 @@ SparkleXrm.GridEditor.XrmDateEditor.prototype = {
     applyValue: function SparkleXrm_GridEditor_XrmDateEditor$applyValue(item, state) {
         var previousValue = item[this._args.column.field];
         var newValue = state;
-        Xrm.Sdk.DateTimeEx.setTime(newValue, previousValue);
+        if (previousValue == null) {
+            var options = SparkleXrm.GridEditor.XrmDateEditor.getDateBindingOptions(this._args.column);
+            previousValue = new Date(1900, 1, 1, (options.hour != null) ? options.hour : 0, (options.minute != null) ? options.minute : 0);
+        }
+        SparkleXrm.Sdk.DateTimeEx.setTime(newValue, previousValue);
         item[this._args.column.field] = newValue;
         this.raiseOnChange(item);
     },
@@ -1554,7 +1742,7 @@ SparkleXrm.GridEditor.XrmDateEditor.prototype = {
     _getSelectedValue$1: function SparkleXrm_GridEditor_XrmDateEditor$_getSelectedValue$1() {
         var selectedValue = null;
         if (!this._calendarOpen$1) {
-            selectedValue = Xrm.Sdk.DateTimeEx.parseDateSpecific(this._input$1.val(), this._dateFormat$1);
+            selectedValue = SparkleXrm.Sdk.DateTimeEx.parseDateSpecific(this._input$1.val(), this._dateFormat$1);
         }
         else {
             selectedValue = this._input$1.datepicker('getDate');
@@ -1580,7 +1768,7 @@ SparkleXrm.GridEditor.XrmDurationEditor = function SparkleXrm_GridEditor_XrmDura
 }
 SparkleXrm.GridEditor.XrmDurationEditor.formatter = function SparkleXrm_GridEditor_XrmDurationEditor$formatter(row, cell, value, columnDef, dataContext) {
     var durationValue = value;
-    return Xrm.Sdk.DateTimeEx.formatDuration(durationValue);
+    return SparkleXrm.Sdk.DateTimeEx.formatDuration(durationValue);
 }
 SparkleXrm.GridEditor.XrmDurationEditor.bindColumn = function SparkleXrm_GridEditor_XrmDurationEditor$bindColumn(column) {
     column.editor = SparkleXrm.GridEditor.XrmDurationEditor.durationEditor;
@@ -1601,7 +1789,7 @@ SparkleXrm.GridEditor.XrmDurationEditor.prototype = {
     
     loadValue: function SparkleXrm_GridEditor_XrmDurationEditor$loadValue(item) {
         var value = item[this._args.column.field];
-        this._input$1.val(Xrm.Sdk.DateTimeEx.formatDuration(value));
+        this._input$1.val(SparkleXrm.Sdk.DateTimeEx.formatDuration(value));
         this._originalValue$1 = value;
         this.focus();
     },
@@ -1611,7 +1799,7 @@ SparkleXrm.GridEditor.XrmDurationEditor.prototype = {
         if (!durationString) {
             return null;
         }
-        var duration = Xrm.Sdk.DateTimeEx.parseDuration(durationString);
+        var duration = SparkleXrm.Sdk.DateTimeEx.parseDuration(durationString);
         return duration;
     },
     
@@ -1622,7 +1810,7 @@ SparkleXrm.GridEditor.XrmDurationEditor.prototype = {
     
     isValueChanged: function SparkleXrm_GridEditor_XrmDurationEditor$isValueChanged() {
         var durationString = this._input$1.val();
-        var originalDurationString = Xrm.Sdk.DateTimeEx.formatDuration(this._originalValue$1);
+        var originalDurationString = SparkleXrm.Sdk.DateTimeEx.formatDuration(this._originalValue$1);
         return originalDurationString !== durationString;
     }
 }
@@ -1638,7 +1826,24 @@ SparkleXrm.GridEditor.XrmLookupEditorOptions.prototype = {
     nameAttribute: null,
     idAttribute: null,
     typeCodeAttribute: null,
-    showImage: true
+    columns: null,
+    showImage: true,
+    showFooter: false,
+    footerButton: null,
+    useQuickCreate: false
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// SparkleXrm.GridEditor.XrmLookupEditorButton
+
+SparkleXrm.GridEditor.XrmLookupEditorButton = function SparkleXrm_GridEditor_XrmLookupEditorButton() {
+}
+SparkleXrm.GridEditor.XrmLookupEditorButton.prototype = {
+    label: '',
+    tooltip: '',
+    onClick: null,
+    image: null
 }
 
 
@@ -1646,12 +1851,12 @@ SparkleXrm.GridEditor.XrmLookupEditorOptions.prototype = {
 // SparkleXrm.GridEditor.XrmLookupEditor
 
 SparkleXrm.GridEditor.XrmLookupEditor = function SparkleXrm_GridEditor_XrmLookupEditor(args) {
-    this._value$1 = new Xrm.Sdk.EntityReference(null, null, null);
-    this._originalValue$1 = new Xrm.Sdk.EntityReference(null, null, null);
+    this._value$1 = new SparkleXrm.Sdk.EntityReference(null, null, '');
+    this._originalValue$1 = new SparkleXrm.Sdk.EntityReference(null, null, '');
     SparkleXrm.GridEditor.XrmLookupEditor.initializeBase(this, [ args ]);
     var self = this;
     this._args = args;
-    this._container$1 = $("<div ><table class='inline-edit-container' cellspacing='0' cellpadding='0'><tr><td><INPUT type=text class='sparkle-input-inline' /></td><td class='lookup-button-td'><input type=button class='sparkle-lookup-button' /></td></tr></table></div>");
+    this._container$1 = $("<div><table class='inline-edit-container' cellspacing='0' cellpadding='0'><tr><td><INPUT type=text class='sparkle-input-inline' /></td><td class='lookup-button-td'><input type=button class='sparkle-lookup-button' /></td></tr></table></div>");
     this._container$1.appendTo(this._args.container);
     var inputField = this._container$1.find('.sparkle-input-inline');
     var selectButton = this._container$1.find('.sparkle-lookup-button');
@@ -1659,50 +1864,98 @@ SparkleXrm.GridEditor.XrmLookupEditor = function SparkleXrm_GridEditor_XrmLookup
     this._input$1.focus().select();
     this._autoComplete$1 = inputField;
     var options = {};
+    options.position = { collision: 'fit' };
     options.minLength = 100000;
     options.delay = 0;
+    var editorOptions = args.column.options;
     var justSelected = false;
     options.select = ss.Delegate.create(this, function(e, uiEvent) {
         if (this._value$1 == null) {
-            this._value$1 = new Xrm.Sdk.EntityReference(null, null, null);
+            this._value$1 = new SparkleXrm.Sdk.EntityReference(null, null, null);
         }
         var item = uiEvent.item;
-        var value = item.label;
-        this._input$1.val(value);
-        this._value$1.id = (item.value).id;
-        this._value$1.name = (item.value).name;
-        this._value$1.logicalName = (item.value).logicalName;
-        justSelected = true;
+        var itemRef = item.value;
+        if (itemRef.logicalName === 'footerlink') {
+            var button = editorOptions.footerButton;
+            button.onClick(item);
+        }
+        else {
+            var value = item.label;
+            this._input$1.val(value);
+            this._value$1.id = itemRef.id;
+            this._value$1.name = itemRef.name;
+            this._value$1.logicalName = (item.value).logicalName;
+            justSelected = true;
+        }
         return false;;
     });
     options.focus = function(e, uiEvent) {
         return false;;
     };
-    options.open = function(e, o) {
+    options.open = ss.Delegate.create(this, function(e, o) {
         self._searchOpen$1 = true;
-    };
-    options.close = function(e, o) {
+        if (editorOptions.showFooter && this._totalRecordsReturned$1 > 0) {
+            var menu = this._input$1.autocomplete('widget');
+            SparkleXrm.GridEditor.XrmLookupEditor.addFooter(menu, this._totalRecordsReturned$1);
+        }
+    });
+    options.close = ss.Delegate.create(this, function(e, o) {
         self._searchOpen$1 = false;
-    };
-    var editorOptions = args.column.options;
+        var menu = this._input$1.autocomplete('widget');
+        var footer = menu.next();
+        if (footer.length > 0 || footer.hasClass('sparkle-menu-footer')) {
+            footer.hide();
+        }
+    });
+    var columns = editorOptions.nameAttribute.split(',');
+    if (columns.length > 1) {
+        editorOptions.columns = columns;
+        editorOptions.nameAttribute = columns[0];
+    }
     var queryDelegate = ss.Delegate.create(this, function(request, response) {
         editorOptions.queryCommand(request.term, ss.Delegate.create(this, function(fetchResult) {
-            var results = new Array(fetchResult.get_entities().get_count());
-            for (var i = 0; i < fetchResult.get_entities().get_count(); i++) {
+            if (fetchResult.get_totalRecordCount() > fetchResult.get_entities().get_count()) {
+                this._totalRecordsReturned$1 = fetchResult.get_totalRecordCount();
+            }
+            else {
+                this._totalRecordsReturned$1 = fetchResult.get_entities().get_count();
+            }
+            var recordsFound = fetchResult.get_entities().get_count();
+            var noRecordsFound = !recordsFound;
+            var button = editorOptions.footerButton;
+            var footerButton = (button != null);
+            var results = new Array(recordsFound + ((footerButton) ? 1 : 0) + ((noRecordsFound) ? 1 : 0));
+            for (var i = 0; i < recordsFound; i++) {
                 results[i] = {};
                 results[i].label = fetchResult.get_entities().get_item(i).getAttributeValue(editorOptions.nameAttribute);
-                var id = new Xrm.Sdk.EntityReference(null, null, null);
+                var id = new SparkleXrm.Sdk.EntityReference(null, null, null);
                 id.name = results[i].label;
                 id.logicalName = fetchResult.get_entities().get_item(i).logicalName;
                 id.id = fetchResult.get_entities().get_item(i).getAttributeValue(editorOptions.idAttribute);
                 results[i].value = id;
+                SparkleXrm.CustomBinding.XrmLookupBinding._getExtraColumns(editorOptions.columns, fetchResult, results, i);
                 var typeCodeName = fetchResult.get_entities().get_item(i).logicalName;
                 if (!String.isNullOrEmpty(editorOptions.typeCodeAttribute)) {
                     typeCodeName = fetchResult.get_entities().get_item(i).getAttributeValue(editorOptions.typeCodeAttribute).toString();
                 }
                 if (editorOptions.showImage) {
-                    results[i].image = Xrm.Sdk.Metadata.MetadataCache.getSmallIconUrl(typeCodeName);
+                    results[i].image = SparkleXrm.Sdk.Metadata.MetadataCache.getSmallIconUrl(typeCodeName);
                 }
+            }
+            var itemsCount = recordsFound;
+            if (noRecordsFound) {
+                var noRecordsItem = {};
+                noRecordsItem.label = SparkleResourceStrings.NoRecordsFound;
+                results[itemsCount] = noRecordsItem;
+                itemsCount++;
+            }
+            if (footerButton) {
+                var addNewLink = {};
+                addNewLink.label = button.label;
+                addNewLink.image = button.image;
+                addNewLink.columnValues = null;
+                addNewLink.value = new SparkleXrm.Sdk.Entity('footerlink');
+                results[itemsCount] = addNewLink;
             }
             response(results);
             var disableOption = {};
@@ -1712,12 +1965,24 @@ SparkleXrm.GridEditor.XrmLookupEditor = function SparkleXrm_GridEditor_XrmLookup
     });
     options.source = queryDelegate;
     inputField = this._autoComplete$1.autocomplete(options);
-    (inputField.data('ui-autocomplete'))._renderItem = function(ul, item) {
+    var autoCompleteDelegates = (inputField.data('ui-autocomplete'));
+    autoCompleteDelegates._renderItem = function(ul, item) {
+        if (item.value === item.label) {
+            return $("<li class='ui-state-disabled'>" + item.label + '</li>').appendTo(ul);
+        }
         var itemHtml = "<a class='sparkle-menu-item'>";
         if (item.image != null) {
             itemHtml += "<span class='sparkle-menu-item-img'><img src='" + item.image + "'/></span>";
         }
-        itemHtml += "<span class='sparkle-menu-item-label'>" + item.label + '</span></a>';
+        itemHtml += "<span class='sparkle-menu-item-label'>" + item.label + '</span><br/>';
+        if (item.columnValues != null && item.columnValues.length > 0) {
+            var $enum1 = ss.IEnumerator.getEnumerator(item.columnValues);
+            while ($enum1.moveNext()) {
+                var value = $enum1.current;
+                itemHtml += "<span class='sparkle-menu-item-moreinfo'>" + value + '</span>';
+            }
+        }
+        itemHtml += '</a>';
         return $('<li>').append(itemHtml).appendTo(ul);
     };
     selectButton.click(ss.Delegate.create(this, function(e) {
@@ -1741,6 +2006,7 @@ SparkleXrm.GridEditor.XrmLookupEditor = function SparkleXrm_GridEditor_XrmLookup
         }
         if (self._searchOpen$1) {
             switch (e.which) {
+                case 9:
                 case 13:
                 case 38:
                 case 40:
@@ -1763,10 +2029,36 @@ SparkleXrm.GridEditor.XrmLookupEditor = function SparkleXrm_GridEditor_XrmLookup
 SparkleXrm.GridEditor.XrmLookupEditor.formatter = function SparkleXrm_GridEditor_XrmLookupEditor$formatter(row, cell, value, columnDef, dataContext) {
     if (value != null) {
         var entityRef = value;
-        return "<a href='#' class='sparkle-lookup-link' entityid='" + entityRef.id + "' typename='" + entityRef.logicalName + "'>" + Xrm.Sdk.XmlHelper.encode(entityRef.name) + '</a>';
+        return "<a href='#' class='sparkle-lookup-link' entityid='" + entityRef.id + "' typename='" + entityRef.logicalName + "'>" + SparkleXrm.Sdk.XmlHelper.encode(entityRef.name) + '</a>';
     }
     else {
         return '';
+    }
+}
+SparkleXrm.GridEditor.XrmLookupEditor.addFooter = function SparkleXrm_GridEditor_XrmLookupEditor$addFooter(menu, recordCount) {
+    var footer = menu.next();
+    if (!footer.length || !footer.hasClass('sparkle-menu-footer')) {
+        footer = $("<div class='sparkle-menu-footer ui-front'></div>");
+        menu.parent().append(footer);
+    }
+    if (footer != null) {
+        footer.html('');
+        var footerContent = $("<span class='sparkle-menu-footer-content'></span>");
+        var footerLeft = $("<span class='sparkle-menu-footer-left'></span>");
+        var footerRight = $("<span class='sparkle-menu-footer-right'></span>");
+        footerContent.append(footerLeft);
+        footerContent.append(footerRight);
+        footerLeft.append(String.format(SparkleResourceStrings.LookupFooter, recordCount));
+        footer.append(footerContent);
+    }
+    var pos = menu.position();
+    var height = menu.height();
+    var width = menu.width();
+    if (footer != null && footer.length > 0) {
+        footer.show();
+        footer.css('top', (pos.top + height + 4).toString() + 'px');
+        footer.css('left', pos.left.toString() + 'px');
+        footer.width(width);
     }
 }
 SparkleXrm.GridEditor.XrmLookupEditor.bindColumn = function SparkleXrm_GridEditor_XrmLookupEditor$bindColumn(column, queryCommand, idAttribute, nameAttribute, typeCodeAttribute) {
@@ -1792,6 +2084,7 @@ SparkleXrm.GridEditor.XrmLookupEditor.prototype = {
     _container$1: null,
     _autoComplete$1: null,
     _searchOpen$1: false,
+    _totalRecordsReturned$1: 0,
     
     destroy: function SparkleXrm_GridEditor_XrmLookupEditor$destroy() {
         this._input$1.autocomplete('close');
@@ -1816,14 +2109,19 @@ SparkleXrm.GridEditor.XrmLookupEditor.prototype = {
     
     loadValue: function SparkleXrm_GridEditor_XrmLookupEditor$loadValue(item) {
         this._originalValue$1 = item[this._args.column.field];
-        this._value$1 = this._originalValue$1;
         if (this._originalValue$1 != null) {
+            this._value$1 = new SparkleXrm.Sdk.EntityReference(this._originalValue$1.id, this._originalValue$1.logicalName, this._originalValue$1.name);
             this._input$1.val(this._originalValue$1.name);
         }
     },
     
     serializeValue: function SparkleXrm_GridEditor_XrmLookupEditor$serializeValue() {
-        return this._value$1;
+        if (this._value$1 != null && this._value$1.id == null) {
+            return null;
+        }
+        else {
+            return this._value$1;
+        }
     },
     
     applyValue: function SparkleXrm_GridEditor_XrmLookupEditor$applyValue(item, state) {
@@ -1833,7 +2131,9 @@ SparkleXrm.GridEditor.XrmLookupEditor.prototype = {
     
     isValueChanged: function SparkleXrm_GridEditor_XrmLookupEditor$isValueChanged() {
         if (this._originalValue$1 != null && this._value$1 != null) {
-            return this._originalValue$1.id !== this._value$1.id;
+            var lvalue = (this._originalValue$1.id != null) ? this._originalValue$1.id.toString() : '';
+            var rvalue = (this._value$1.id != null) ? this._value$1.id.toString() : '';
+            return lvalue !== rvalue;
         }
         else {
             return ((this._originalValue$1 != null) || (this._value$1 != null));
@@ -1914,6 +2214,7 @@ SparkleXrm.GridEditor.CrmPagerControl.prototype = {
             var paging = {};
             paging.pageNum = state.pagingInfo.pageNum - 1;
             this._dataView.setPagingOptions(paging);
+            this._grid.scrollRowToTop(0);
         }
     },
     
@@ -1923,6 +2224,7 @@ SparkleXrm.GridEditor.CrmPagerControl.prototype = {
             var paging = {};
             paging.pageNum = state.pagingInfo.pageNum + 1;
             this._dataView.setPagingOptions(paging);
+            this._grid.scrollRowToTop(0);
         }
     },
     
@@ -2054,8 +2356,8 @@ SparkleXrm.GridEditor.XrmTimeEditor = function SparkleXrm_GridEditor_XrmTimeEdit
     SparkleXrm.GridEditor.XrmTimeEditor.initializeBase(this, [ args ]);
     var justSelected = false;
     var self = this;
-    if (Xrm.Sdk.OrganizationServiceProxy.userSettings != null) {
-        this._formatString$1 = Xrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring;
+    if (SparkleXrm.Sdk.OrganizationServiceProxy.userSettings != null) {
+        this._formatString$1 = SparkleXrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring;
     }
     this._container$1 = $("<div ><table class='inline-edit-container' cellspacing='0' cellpadding='0'><tr><td><INPUT type=text class='sparkle-input-inline' /></td><td class='lookup-button-td'><input type=button class='autocompleteButton' /></td></tr></table></div>");
     this._container$1.appendTo(this._args.container);
@@ -2109,22 +2411,23 @@ SparkleXrm.GridEditor.XrmTimeEditor.getTimePickerAutoCompleteOptions = function 
     var autoCompleteDate = Date.parseDate('2000-01-01T00:00:00');
     for (var i = 0; i < 48; i++) {
         timeOptions[i] = SparkleXrm.GridEditor.XrmTimeEditor._formatTime$1(autoCompleteDate, timeFormatString);
-        autoCompleteDate = Xrm.Sdk.DateTimeEx.dateAdd('minutes', 30, autoCompleteDate);
+        autoCompleteDate = SparkleXrm.Sdk.DateTimeEx.dateAdd('minutes', 30, autoCompleteDate);
     }
     options.source = timeOptions;
     options.minLength = 0;
     options.delay = 0;
+    options.position = { collision: 'fit' };
     return options;
 }
 SparkleXrm.GridEditor.XrmTimeEditor.bindColumn = function SparkleXrm_GridEditor_XrmTimeEditor$bindColumn(column) {
     column.editor = SparkleXrm.GridEditor.XrmTimeEditor.timeEditor;
     column.formatter = SparkleXrm.GridEditor.XrmTimeEditor.formatter;
-    column.options = Xrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring;
+    column.options = SparkleXrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring;
     return column;
 }
 SparkleXrm.GridEditor.XrmTimeEditor.bindReadOnlyColumn = function SparkleXrm_GridEditor_XrmTimeEditor$bindReadOnlyColumn(column) {
     column.formatter = SparkleXrm.GridEditor.XrmTimeEditor.formatter;
-    column.options = Xrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring;
+    column.options = SparkleXrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring;
     return column;
 }
 SparkleXrm.GridEditor.XrmTimeEditor.prototype = {
@@ -2167,7 +2470,7 @@ SparkleXrm.GridEditor.XrmTimeEditor.prototype = {
         if (!timeString) {
             return null;
         }
-        var currentDate = Xrm.Sdk.DateTimeEx.addTimeToDate(this._dateTimeValue$1, timeString);
+        var currentDate = SparkleXrm.Sdk.DateTimeEx.addTimeToDate(this._dateTimeValue$1, timeString);
         return currentDate;
     },
     
@@ -2181,7 +2484,7 @@ SparkleXrm.GridEditor.XrmTimeEditor.prototype = {
         var originalDateString = SparkleXrm.GridEditor.XrmTimeEditor._formatTime$1(this._originalDateTimeValue$1, this._formatString$1);
         var newDateString = '';
         if (!!timeString) {
-            var currentDate = Xrm.Sdk.DateTimeEx.addTimeToDate(this._dateTimeValue$1, timeString);
+            var currentDate = SparkleXrm.Sdk.DateTimeEx.addTimeToDate(this._dateTimeValue$1, timeString);
             newDateString = SparkleXrm.GridEditor.XrmTimeEditor._formatTime$1(currentDate, this._formatString$1);
         }
         return originalDateString !== newDateString;
@@ -2262,7 +2565,7 @@ SparkleXrm.GridEditor.DataViewBase.prototype = {
         }
         this.paging.totalPages = this.getTotalPages();
         this.paging.fromRecord = (this.paging.pageNum * this.paging.pageSize) + 1;
-        this.paging.toRecord = this.paging.totalRows;
+        this.paging.toRecord = Math.min(this.paging.totalRows, this.paging.fromRecord + this.paging.pageSize - 1);
     },
     
     setPagingOptions: function SparkleXrm_GridEditor_DataViewBase$setPagingOptions(p) {
@@ -2310,6 +2613,10 @@ SparkleXrm.GridEditor.DataViewBase.prototype = {
     },
     
     sort: function SparkleXrm_GridEditor_DataViewBase$sort(sorting) {
+    },
+    
+    getSortColumns: function SparkleXrm_GridEditor_DataViewBase$getSortColumns() {
+        return null;
     },
     
     gridValidationIndexer: function SparkleXrm_GridEditor_DataViewBase$gridValidationIndexer() {
@@ -2375,7 +2682,7 @@ SparkleXrm.GridEditor.GridDataViewBinder._showLoadingIndicator = function Sparkl
 }
 SparkleXrm.GridEditor.GridDataViewBinder.addColumn = function SparkleXrm_GridEditor_GridDataViewBinder$addColumn(cols, displayName, width, field) {
     var col = SparkleXrm.GridEditor.GridDataViewBinder.newColumn(field, displayName, width);
-    Xrm.ArrayEx.add(cols, col);
+    SparkleXrm.ArrayEx.add(cols, col);
     return col;
 }
 SparkleXrm.GridEditor.GridDataViewBinder.parseLayout = function SparkleXrm_GridEditor_GridDataViewBinder$parseLayout(layout) {
@@ -2386,13 +2693,13 @@ SparkleXrm.GridEditor.GridDataViewBinder.parseLayout = function SparkleXrm_GridE
         var name = layoutParts[i];
         var width = parseInt(layoutParts[i + 2]);
         var col = SparkleXrm.GridEditor.GridDataViewBinder.newColumn(field, name, width);
-        Xrm.ArrayEx.add(cols, col);
+        SparkleXrm.ArrayEx.add(cols, col);
     }
     return cols;
 }
 SparkleXrm.GridEditor.GridDataViewBinder.newColumn = function SparkleXrm_GridEditor_GridDataViewBinder$newColumn(field, name, width) {
     var col = {};
-    col.id = name;
+    col.id = field;
     col.name = name;
     col.width = width;
     col.minWidth = col.width;
@@ -2411,7 +2718,7 @@ SparkleXrm.GridEditor.GridDataViewBinder.columnFormatter = function SparkleXrm_G
         typeName = Type.getInstanceType(value).get_name();
     }
     var entityContext = dataContext;
-    var unchanged = (entityContext.entityState == null) || (entityContext.entityState === Xrm.Sdk.EntityStates.unchanged);
+    var unchanged = (entityContext.entityState == null) || (entityContext.entityState === SparkleXrm.Sdk.EntityStates.unchanged);
     if (unchanged && entityContext.formattedValues != null && Object.keyExists(entityContext.formattedValues, columnDef.field + 'name')) {
         returnValue = entityContext.formattedValues[columnDef.field + 'name'];
         return returnValue;
@@ -2430,11 +2737,11 @@ SparkleXrm.GridEditor.GridDataViewBinder.columnFormatter = function SparkleXrm_G
                 var dateValue = value;
                 var dateFormat = 'dd/mm/yy';
                 var timeFormat = 'hh:MM';
-                if (Xrm.Sdk.OrganizationServiceProxy.userSettings != null) {
-                    dateFormat = Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring;
-                    timeFormat = Xrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring;
+                if (SparkleXrm.Sdk.OrganizationServiceProxy.userSettings != null) {
+                    dateFormat = SparkleXrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring;
+                    timeFormat = SparkleXrm.Sdk.OrganizationServiceProxy.userSettings.timeformatstring;
                 }
-                returnValue = Xrm.Sdk.DateTimeEx.formatDateSpecific(dateValue, dateFormat) + ' ' + Xrm.Sdk.DateTimeEx.formatTimeSpecific(dateValue, timeFormat);
+                returnValue = SparkleXrm.Sdk.DateTimeEx.formatDateSpecific(dateValue, dateFormat) + ' ' + SparkleXrm.Sdk.DateTimeEx.formatTimeSpecific(dateValue, timeFormat);
                 break;
             case 'decimal':
                 returnValue = value.toString();
@@ -2490,7 +2797,7 @@ SparkleXrm.GridEditor.GridDataViewBinder.rowIcon = function SparkleXrm_GridEdito
             return '';
         }
         else {
-            return "<span class='sparkle-grid-row-img'><img src='" + Xrm.Sdk.Metadata.MetadataCache.getSmallIconUrl(lookup.logicalName) + "'/></span>";
+            return "<span class='sparkle-grid-row-img'><img src='" + SparkleXrm.Sdk.Metadata.MetadataCache.getSmallIconUrl(lookup.logicalName) + "'/></span>";
         }
     }
 }
@@ -2498,10 +2805,10 @@ SparkleXrm.GridEditor.GridDataViewBinder.addEditIndicatorColumn = function Spark
     SparkleXrm.GridEditor.GridDataViewBinder.addColumn(columns, '', 20, 'entityState').formatter = function(row, cell, value, columnDef, dataContext) {
         var state = value;
         switch (state) {
-            case Xrm.Sdk.EntityStates.created:
-            case Xrm.Sdk.EntityStates.changed:
+            case SparkleXrm.Sdk.EntityStates.created:
+            case SparkleXrm.Sdk.EntityStates.changed:
                 return "<span class='grid-edit-indicator'></span>";
-            case Xrm.Sdk.EntityStates.readOnly:
+            case SparkleXrm.Sdk.EntityStates.readOnly:
                 return "<span class='grid-readonly-indicator'></span>";
             default:
                 return '';
@@ -2512,18 +2819,19 @@ SparkleXrm.GridEditor.GridDataViewBinder.prototype = {
     selectActiveRow: true,
     addCheckBoxSelectColumn: true,
     multiSelect: true,
+    validationPopupUseFitPosition: false,
     _sortColumnName: null,
     _grid: null,
     
     dataBindXrmGrid: function SparkleXrm_GridEditor_GridDataViewBinder$dataBindXrmGrid(dataView, columns, gridId, pagerId, editable, allowAddNewRow) {
-        Xrm.ArrayEx.add(columns, {});
+        SparkleXrm.ArrayEx.add(columns, {});
         var gridOptions = {};
         gridOptions.enableCellNavigation = true;
         gridOptions.autoEdit = editable;
         gridOptions.editable = editable;
         gridOptions.asyncEditorLoading = true;
         gridOptions.enableAddRow = allowAddNewRow;
-        gridOptions.rowHeight = (Xrm.PageEx.majorVersion === 2013) ? 30 : 20;
+        gridOptions.rowHeight = (SparkleXrm.Xrm.PageEx.majorVersion === 2013) ? 30 : 20;
         gridOptions.headerRowHeight = 25;
         gridOptions.enableColumnReorder = false;
         var checkBoxSelector = null;
@@ -2558,7 +2866,7 @@ SparkleXrm.GridEditor.GridDataViewBinder.prototype = {
     },
     
     dataBindDataViewGrid: function SparkleXrm_GridEditor_GridDataViewBinder$dataBindDataViewGrid(dataView, columns, gridId, pagerId, editable, allowAddNewRow) {
-        Xrm.ArrayEx.add(columns, {});
+        SparkleXrm.ArrayEx.add(columns, {});
         var gridOptions = {};
         gridOptions.enableCellNavigation = true;
         gridOptions.autoEdit = editable;
@@ -2727,7 +3035,7 @@ SparkleXrm.GridEditor.GridDataViewBinder.prototype = {
     
     addRefreshButton: function SparkleXrm_GridEditor_GridDataViewBinder$addRefreshButton(gridId, dataView) {
         var gridDiv = $('#' + gridId);
-        var refreshButton = $("<div id='refreshButton' class='sparkle-grid-refresh-button' style='left: auto; right: 0px; display: inline;'><a href='#' id='refreshButtonLink' tabindex='0'><img id='grid_refresh' src='../../sparkle_/css/images/transparent_spacer.gif' class='sparkle-grid-refresh-button-img' style='cursor:pointer' alt='Refresh list' title='Refresh list'></a></div>").appendTo(gridDiv);
+        var refreshButton = $("<div id='refreshButton' class='sparkle-grid-refresh-button' style='left: auto; right: 0px; display: inline;'><a href='#' id='refreshButtonLink' tabindex='0'><span id='grid_refresh' class='sparkle-grid-refresh-button-img' style='cursor:pointer'></span></a></div>").appendTo(gridDiv);
         refreshButton.find('#refreshButtonLink').click(function(e) {
             dataView.reset();
             dataView.refresh();
@@ -2773,7 +3081,7 @@ SparkleXrm.GridEditor.GridDataViewBinder.prototype = {
         grid.onCellChange.subscribe(clearValidationIndicator);
         grid.onActiveCellChanged.subscribe(clearValidationIndicator);
         grid.onBeforeCellEditorDestroy.subscribe(clearValidationIndicator);
-        grid.onValidationError.subscribe(function(e, a) {
+        grid.onValidationError.subscribe(ss.Delegate.create(this, function(e, a) {
             var args = a;
             var validationResult = args.validationResults;
             var activeCellNode = args.cellNode;
@@ -2788,10 +3096,11 @@ SparkleXrm.GridEditor.GridDataViewBinder.prototype = {
                 clearValidationIndicator(e, a);
                 validationIndicator = $("<div class='popup-box-container'><div width='16px' height='16px' class='sparkle-imagestrip-inlineedit_warning popup-box-icon' alt='Error' id='icon'/><div class='popup-box validation-text'/></div>").appendTo(document.body);
                 validationIndicator.find('.validation-text').text(errorMessage);
+                var colisionPosition = (this.validationPopupUseFitPosition) ? 'fit fit' : 'none none';
                 validationIndicator.position({
                                             my: 'left bottom',
                                             at: 'left top',
-                                            collision: 'fit fit',
+                                            collision: 'colisionPosition',
                                             of: activeCellNode
                                         })
                                         .show({
@@ -2812,7 +3121,7 @@ SparkleXrm.GridEditor.GridDataViewBinder.prototype = {
                 clearValidationIndicator(e, a);
                 $(activeCellNode).attr('title', '');
             }
-        });
+        }));
         dataView.onDataLoading.subscribe(function(e, a) {
             loadingIndicator = SparkleXrm.GridEditor.GridDataViewBinder._showLoadingIndicator(loadingIndicator, gridContainerDivId);
             var $enum1 = ss.IEnumerator.getEnumerator(grid.getColumns());
@@ -2824,6 +3133,13 @@ SparkleXrm.GridEditor.GridDataViewBinder.prototype = {
             }
         });
         dataView.onDataLoaded.subscribe(function(e, a) {
+            var sortCols = grid.getSortColumns();
+            var noGridSort = sortCols == null || !sortCols.length;
+            var viewSortCols = dataView.getSortColumns();
+            var noViewCols = viewSortCols == null || !viewSortCols.length;
+            if (noGridSort && !noViewCols) {
+                grid.setSortColumn(viewSortCols[0].attributeName, viewSortCols[0].ascending);
+            }
             var args = a;
             if (args != null) {
                 if (args.errorMessage == null) {
@@ -2894,7 +3210,7 @@ SparkleXrm.GridEditor.GridEditorBase.prototype = {
     },
     
     raiseOnChange: function SparkleXrm_GridEditor_GridEditorBase$raiseOnChange(item) {
-        var itemObject = Type.safeCast(item, Xrm.ComponentModel.INotifyPropertyChanged);
+        var itemObject = Type.safeCast(item, SparkleXrm.ComponentModel.INotifyPropertyChanged);
         if (itemObject != null) {
             itemObject.raisePropertyChanged(this._args.column.field);
         }
@@ -2931,16 +3247,16 @@ SparkleXrm.GridEditor.GridEditorBase.prototype = {
 // SparkleXrm.GridEditor.XrmOptionSetEditor
 
 SparkleXrm.GridEditor.XrmOptionSetEditor = function SparkleXrm_GridEditor_XrmOptionSetEditor(args) {
-    this._defaultValue$1 = new Xrm.Sdk.OptionSetValue(null);
+    this._defaultValue$1 = new SparkleXrm.Sdk.OptionSetValue(null);
     SparkleXrm.GridEditor.XrmOptionSetEditor.initializeBase(this, [ args ]);
     var self = this;
     var opts = args.column.options;
-    if (SparkleXrm.GridEditor.XrmOptionSetEditor._options$1 == null) {
+    if (this._options$1 == null) {
         if (opts.getOptionSetsDelegate != null) {
-            SparkleXrm.GridEditor.XrmOptionSetEditor._options$1 = opts.getOptionSetsDelegate(args.item);
+            this._options$1 = opts.getOptionSetsDelegate(args.item);
         }
         else {
-            SparkleXrm.GridEditor.XrmOptionSetEditor._options$1 = Xrm.Sdk.Metadata.MetadataCache.getOptionSetValues(opts.entityLogicalName, opts.attributeLogicalName, opts.allowEmpty);
+            this._options$1 = SparkleXrm.Sdk.Metadata.MetadataCache.getOptionSetValues(opts.entityLogicalName, opts.attributeLogicalName, opts.allowEmpty);
         }
     }
     this.createSelect(self);
@@ -2966,12 +3282,12 @@ SparkleXrm.GridEditor.XrmOptionSetEditor.bindColumnWithOptions = function Sparkl
     return column;
 }
 SparkleXrm.GridEditor.XrmOptionSetEditor.prototype = {
+    _options$1: null,
     _input$1: null,
     
     createSelect: function SparkleXrm_GridEditor_XrmOptionSetEditor$createSelect(self) {
         var optionSet = '<SELECT>';
-        optionSet += String.format('<OPTION title="" value="" {0}></OPTION>', (self._defaultValue$1.value == null) ? 'selected' : '');
-        var $enum1 = ss.IEnumerator.getEnumerator(SparkleXrm.GridEditor.XrmOptionSetEditor._options$1);
+        var $enum1 = ss.IEnumerator.getEnumerator(this._options$1);
         while ($enum1.moveNext()) {
             var o = $enum1.current;
             optionSet += String.format('<OPTION title="{0}" value="{1}" {2}>{0}</OPTION>', o.name, o.value, (self._defaultValue$1.value === o.value) ? 'selected' : '');
@@ -3005,7 +3321,7 @@ SparkleXrm.GridEditor.XrmOptionSetEditor.prototype = {
     
     serializeValue: function SparkleXrm_GridEditor_XrmOptionSetEditor$serializeValue() {
         if (this._input$1 != null) {
-            var opt = new Xrm.Sdk.OptionSetValue(this._getValue$1());
+            var opt = new SparkleXrm.Sdk.OptionSetValue(this._getValue$1());
             opt.name = $('option:selected', this._input$1).text();
             return opt;
         }
@@ -3018,7 +3334,7 @@ SparkleXrm.GridEditor.XrmOptionSetEditor.prototype = {
         var opt = state;
         item[this._args.column.field] = opt;
         item[this._args.column.field + 'name'] = opt.name;
-        var itemObject = Type.safeCast((item), Xrm.ComponentModel.INotifyPropertyChanged);
+        var itemObject = Type.safeCast((item), SparkleXrm.ComponentModel.INotifyPropertyChanged);
         if (itemObject != null) {
             itemObject.raisePropertyChanged(this._args.column.field);
         }
@@ -3060,27 +3376,34 @@ Type.registerNamespace('SparkleXrm');
 
 SparkleXrm.LocalisedContentLoader = function SparkleXrm_LocalisedContentLoader() {
 }
-SparkleXrm.LocalisedContentLoader.prototype = {
-    fallBackLCID: 1033,
-    
-    loadContent: function SparkleXrm_LocalisedContentLoader$loadContent(webresourceFileName, lcid, callback) {
-        if (!SparkleXrm.LocalisedContentLoader.supportedLCIDs.contains(lcid)) {
-            lcid = this.fallBackLCID;
-        }
-        var pos = webresourceFileName.lastIndexOf('.');
-        var resourceFileName = webresourceFileName.substr(0, pos - 1) + '_' + lcid.toString() + webresourceFileName.substr(pos);
-        var options = {};
-        options.type = 'GET';
-        options.url = resourceFileName;
-        options.dataType = 'script';
-        options.success = function(data, textStatus, request) {
-            callback();
-        };
-        options.error = function(request, textStatus, error) {
-            alert(String.format("Could not load resource file '{0}'. Please contact your system adminsitrator.", resourceFileName));
-        };
-        $.ajax(options);
+SparkleXrm.LocalisedContentLoader.loadContent = function SparkleXrm_LocalisedContentLoader$loadContent(webresourceFileName, lcid, callback) {
+    var lcidSupported = SparkleXrm.LocalisedContentLoader.supportedLCIDs.contains(0) || SparkleXrm.LocalisedContentLoader.supportedLCIDs.contains(lcid);
+    if (!lcidSupported || (lcid === SparkleXrm.LocalisedContentLoader.fallBackLCID)) {
+        callback();
+        return;
     }
+    var pos = webresourceFileName.lastIndexOf('.');
+    var resourceFileName = Xrm.Page.context.getClientUrl() + '/' + SparkleXrm.Xrm.PageEx.getCacheKey() + 'WebResources/' + webresourceFileName.substr(0, pos) + '_' + lcid.toString() + webresourceFileName.substr(pos);
+    var options = {};
+    options.type = 'GET';
+    options.url = resourceFileName;
+    options.dataType = 'script';
+    options.cache = true;
+    options.success = function(data, textStatus, request) {
+        callback();
+    };
+    options.error = function(request, textStatus, error) {
+        alert(String.format("Could not load resource file '{0}'. Please contact your system adminsitrator.\n\n{1}:{2}", resourceFileName, textStatus, error.message));
+        callback();
+    };
+    $.ajax(options);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// SparkleResourceStrings
+
+SparkleResourceStrings = function SparkleResourceStrings() {
 }
 
 
@@ -3272,7 +3595,7 @@ SparkleXrm.ViewBase.registerViewModel = function SparkleXrm_ViewBase$registerVie
             $.get(SparkleXrm.ViewBase.sparkleXrmTemplatePath, function(template) {
                 $('body').append(template);
                 ko.validation.registerExtenders();
-                Xrm.Sdk.OrganizationServiceProxy.getUserSettings();
+                SparkleXrm.Sdk.OrganizationServiceProxy.getUserSettings();
                 SparkleXrm.ViewBase._templateLoaded = true;
                 ko.applyBindings(viewModel);
             });
@@ -3350,7 +3673,7 @@ Type.registerNamespace('SparkleXrm.Validation');
 SparkleXrm.Validation.DurationValidation = function SparkleXrm_Validation_DurationValidation() {
 }
 SparkleXrm.Validation.DurationValidation.validator = function SparkleXrm_Validation_DurationValidation$validator(val, otherval) {
-    var parseDate = Xrm.Sdk.DateTimeEx.addTimeToDate(Date.get_now(), val);
+    var parseDate = SparkleXrm.Sdk.DateTimeEx.addTimeToDate(Date.get_now(), val);
     return parseDate != null;
 }
 
@@ -3361,7 +3684,7 @@ SparkleXrm.Validation.DurationValidation.validator = function SparkleXrm_Validat
 SparkleXrm.Validation.TimeValidation = function SparkleXrm_Validation_TimeValidation() {
 }
 SparkleXrm.Validation.TimeValidation.validator = function SparkleXrm_Validation_TimeValidation$validator(val, otherval) {
-    var parseDate = Xrm.Sdk.DateTimeEx.addTimeToDate(Date.get_now(), val);
+    var parseDate = SparkleXrm.Sdk.DateTimeEx.addTimeToDate(Date.get_now(), val);
     return parseDate != null;
 }
 
@@ -3391,6 +3714,7 @@ SparkleXrm.GridEditor.EntityDataViewModel.registerClass('SparkleXrm.GridEditor.E
 SparkleXrm.GridEditor.XrmDateEditor.registerClass('SparkleXrm.GridEditor.XrmDateEditor', SparkleXrm.GridEditor.GridEditorBase);
 SparkleXrm.GridEditor.XrmDurationEditor.registerClass('SparkleXrm.GridEditor.XrmDurationEditor', SparkleXrm.GridEditor.GridEditorBase);
 SparkleXrm.GridEditor.XrmLookupEditorOptions.registerClass('SparkleXrm.GridEditor.XrmLookupEditorOptions');
+SparkleXrm.GridEditor.XrmLookupEditorButton.registerClass('SparkleXrm.GridEditor.XrmLookupEditorButton');
 SparkleXrm.GridEditor.XrmLookupEditor.registerClass('SparkleXrm.GridEditor.XrmLookupEditor', SparkleXrm.GridEditor.GridEditorBase);
 SparkleXrm.GridEditor.CrmPagerControl.registerClass('SparkleXrm.GridEditor.CrmPagerControl');
 SparkleXrm.GridEditor.XrmTextEditor.registerClass('SparkleXrm.GridEditor.XrmTextEditor', SparkleXrm.GridEditor.GridEditorBase);
@@ -3399,6 +3723,7 @@ SparkleXrm.GridEditor.Formatters.registerClass('SparkleXrm.GridEditor.Formatters
 SparkleXrm.GridEditor.GridDataViewBinder.registerClass('SparkleXrm.GridEditor.GridDataViewBinder');
 SparkleXrm.GridEditor.XrmOptionSetEditor.registerClass('SparkleXrm.GridEditor.XrmOptionSetEditor', SparkleXrm.GridEditor.GridEditorBase);
 SparkleXrm.LocalisedContentLoader.registerClass('SparkleXrm.LocalisedContentLoader');
+SparkleResourceStrings.registerClass('SparkleResourceStrings');
 SparkleXrm.ValidationRules.registerClass('SparkleXrm.ValidationRules');
 SparkleXrm.AnonymousRule.registerClass('SparkleXrm.AnonymousRule');
 SparkleXrm.ValidationMessage.registerClass('SparkleXrm.ValidationMessage');
@@ -3550,14 +3875,16 @@ SparkleXrm.GridEditor.XrmTimeEditor.timeEditor = null;
     };
 })();
 SparkleXrm.GridEditor.XrmOptionSetEditor.editorFactory = null;
-SparkleXrm.GridEditor.XrmOptionSetEditor._options$1 = null;
 (function () {
     SparkleXrm.GridEditor.XrmOptionSetEditor.editorFactory = function(args) {
         var editor = new SparkleXrm.GridEditor.XrmOptionSetEditor(args);
         return editor;
     };
 })();
-SparkleXrm.LocalisedContentLoader.supportedLCIDs = [];
+SparkleXrm.LocalisedContentLoader.supportedLCIDs = new Array(1033);
+SparkleXrm.LocalisedContentLoader.fallBackLCID = 1033;
+SparkleResourceStrings.LookupFooter = '{0} Result(s)';
+SparkleResourceStrings.NoRecordsFound = 'No records found.';
 SparkleXrm.ViewBase._templateLoaded = false;
 SparkleXrm.ViewBase.sparkleXrmTemplatePath = '../../sparkle_/html/form.templates.htm';
 (function () {
@@ -3583,45 +3910,4 @@ SparkleXrm.ViewBase.sparkleXrmTemplatePath = '../../sparkle_/html/form.templates
 })();
 })(window.xrmjQuery);
 
-});
 
-
-function waitForScripts(name, scriptNames, callback) {
-    var hasLoaded = false;
-    window._loadedScripts = window._loadedScripts || [];
-    function checkScripts() {
-        var allLoaded = true;
-        for (var i = 0; i < scriptNames.length; i++) {
-            var hasLoaded = true;
-            var script = scriptNames[i];
-            switch (script) {
-                case "mscorlib":
-                    hasLoaded = typeof (window.ss) != "undefined";
-                    break;
-                case "jquery":
-                    hasLoaded = typeof (window.xrmjQuery) != "undefined";
-                    break;
-				 case "jquery-ui":
-                    hasLoaded = typeof (window.xrmjQuery.ui) != "undefined";
-                    break;
-                default:
-                    hasLoaded = window._loadedScripts[script];
-                    break;
-            }
-
-            allLoaded = allLoaded && hasLoaded;
-            if (!allLoaded) {
-                setTimeout(checkScripts, 10);
-                break;
-            }
-        }
-
-        if (allLoaded) {
-            callback();
-            window._loadedScripts[name] = true;
-        }
-    }
-	
-	checkScripts();
-	
-}

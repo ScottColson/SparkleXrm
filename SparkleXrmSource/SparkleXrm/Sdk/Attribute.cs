@@ -4,10 +4,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Xml;
 
 namespace Xrm.Sdk
 {
+    [ScriptNamespace("SparkleXrm.Sdk")]
 	public class Attribute
     {
         #region Fields
@@ -38,7 +40,7 @@ namespace Xrm.Sdk
 
         #region Methods
         public static object DeSerialise(XmlNode node,string overrideType)
-		{
+		{          
 			// Check if the value is null
 			bool isNil = (XmlHelper.GetAttributeValue(node, "i:nil") == "true");
 			object value = null;
@@ -65,6 +67,9 @@ namespace Xrm.Sdk
 					case AttributeTypes.Boolean_:
 						value = (stringValue == "true");
 						break;
+                    case AttributeTypes.Double_:
+                        value = double.Parse(stringValue);
+                        break;
 					case AttributeTypes.Decimal_:
 						value = decimal.Parse(stringValue);
 						break;
@@ -225,7 +230,8 @@ namespace Xrm.Sdk
                     break;
                 case AttributeTypes.Money:
                     Money money = (Money)value;
-                    if (money != null)
+
+                    if (money != null && (decimal?)money.Value!=null)
                     {
                         valueXml += "<b:value i:type=\"" + _addNsPrefix(typeName) + "\">";
                         valueXml += "<a:Value>" + money.Value.ToString() + "</a:Value>";
@@ -266,6 +272,7 @@ namespace Xrm.Sdk
 				case "DateTime":
 				case AttributeTypes.String_:
 				case AttributeTypes.Decimal_:
+                case AttributeTypes.Double_:
 				case AttributeTypes.Boolean_:
 				case AttributeTypes.DateTime_:
 				case AttributeTypes.Guid_:
@@ -278,7 +285,7 @@ namespace Xrm.Sdk
                 case AttributeTypes.Money:
 					return "a:" + type;
 			}
-			throw new Exception("Could add node prefix for type " + type);
+			throw new Exception("Could not add node prefix for type " + type);
         }
         #endregion
     }

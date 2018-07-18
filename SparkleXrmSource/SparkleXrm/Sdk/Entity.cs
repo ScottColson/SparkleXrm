@@ -4,11 +4,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Xml;
 using Xrm.ComponentModel;
 
 namespace Xrm.Sdk
 {
+    [ScriptNamespace("SparkleXrm.Sdk")]
     public enum EntityStates
     {
         Unchanged = 0,
@@ -18,8 +20,7 @@ namespace Xrm.Sdk
         ReadOnly = 4
 
     }
-
-    
+    [ScriptNamespace("SparkleXrm.Sdk")]
     public class Entity :INotifyPropertyChanged
     {
         #region Fields
@@ -30,6 +31,14 @@ namespace Xrm.Sdk
         
         private Dictionary<string,object> _attributes;
         public Dictionary<string, string> FormattedValues;
+        //
+        // Summary:
+        //     Gets or sets a collection of entity references (references to records).
+        //
+        // Returns:
+        //     Type: Microsoft.Xrm.Sdk.RelatedEntityCollection a collection of entity references
+        //     (references to records).
+        public Dictionary<string,EntityCollection> RelatedEntities;
         #endregion
 
         #region Constructors
@@ -83,8 +92,24 @@ namespace Xrm.Sdk
                     }
                 }
             }
+            // Get related entities
+            XmlNode relatedEntities = XmlHelper.SelectSingleNode(entityNode, "RelatedEntities");
+            if (relatedEntities != null)
+            {
+                Dictionary<string,EntityCollection> relatedEntitiesColection = new Dictionary<string,EntityCollection>();
+                for (int i = 0; i < relatedEntities.ChildNodes.Count; i++)
+                {
+                    XmlNode node = relatedEntities.ChildNodes[i];
+                    XmlNode key = XmlHelper.SelectSingleNode(node, "key");
+                    string schemaName = XmlHelper.SelectSingleNodeValue(key, "SchemaName");
+                    Relationship relationship = new Relationship(schemaName);
+                    XmlNode value = XmlHelper.SelectSingleNode(node, "value");
+                    EntityCollection entities = EntityCollection.DeSerialise(value);
+                    relatedEntitiesColection[relationship.SchemaName] = entities;
+                }
+                this.RelatedEntities = relatedEntitiesColection;
 
-            this.RaiseRecordLoaded();
+            }
         }
 
         private void SetDictionaryValue(string key, object value)
@@ -119,7 +144,7 @@ namespace Xrm.Sdk
                 // Exclude the built in properties
                 if ((bool)Script.Literal(@"typeof({0}[{1}])!=""function""",record,key)
                     && (bool)Script.Literal("Object.prototype.hasOwnProperty.call({0}, {1})", this, key) 
-                    && !StringEx.IN(key, new string[] { "id","logicalName","entityState","formattedValues"}) && !key.StartsWith("$") && !key.StartsWith("_"))
+                    && !StringEx.IN(key, new string[] { "id","logicalName","entityState","formattedValues","relatedEntities"}) && !key.StartsWith("$") && !key.StartsWith("_"))
                 {
                     object attributeValue = record[key];
                     if (!FormattedValues.ContainsKey(key))
@@ -187,12 +212,6 @@ namespace Xrm.Sdk
                 EntityState = EntityStates.Changed;
         }
 
-        public void RaiseRecordLoaded()
-        {
-            if (RecordLoaded != null)
-                RecordLoaded(this);
-        }
-
         public EntityReference ToEntityReference()
         {
             return new EntityReference(new Guid(this.Id), this.LogicalName, "");
@@ -210,7 +229,7 @@ namespace Xrm.Sdk
                 typeName = l.GetType().Name;
             else if (r != null)
                 typeName = r.GetType().Name;
-
+            
             if (l != r)
             {
                 switch (typeName.ToLowerCase())
@@ -224,7 +243,11 @@ namespace Xrm.Sdk
                             result = 1;
                         break;
                     case "date":
-                        if ((bool)Script.Literal("{0}<{1}", l, r))
+                        if (l == null)
+                            result = -1;
+                        else if (r == null)
+                            result = 1;
+                        else if ((bool)Script.Literal("{0}<{1}", l, r))
                             result = -1;
                         else
                             result = 1;
@@ -263,7 +286,6 @@ namespace Xrm.Sdk
 
         #region Events
         public event PropertyChangedEventHandler PropertyChanged;
-        public event RecordLoadedEventHandler RecordLoaded;
         #endregion
     }
 }

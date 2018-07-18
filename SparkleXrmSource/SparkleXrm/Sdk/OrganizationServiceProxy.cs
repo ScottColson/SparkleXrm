@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Html;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Xml;
 using Xrm;
 using Xrm.Sdk.Messages;
@@ -16,6 +17,7 @@ namespace Xrm.Sdk
     /// The OrganizationServiceProxy is a static class for ease of use
     /// We might need to make an instance class as well to aid sharing code between client and server
     /// </summary>
+    [ScriptNamespace("SparkleXrm.Sdk")]
     public class OrganizationServiceProxy
     {
         #region Fields
@@ -125,7 +127,7 @@ namespace Xrm.Sdk
             }
             else
             {
-                throw new Exception((string)asyncState);
+                throw (Exception)asyncState;
             }
 
         }
@@ -182,7 +184,25 @@ namespace Xrm.Sdk
             Script.Literal("delete {0}", resultXml);
             resultXml = null;
         }
+        public static void BeginDisassociate(string entityName, Guid entityId, Relationship relationship, List<EntityReference> relatedEntities, Action<object> callBack)
+        {
+            GetResponse(GetDisassociateRequest(entityName, entityId, relationship, relatedEntities), "Execute", callBack);
+        }
 
+        public static void EndDisassociate(object asyncState)
+        {
+            XmlDocument xmlDocument = (XmlDocument)asyncState;
+
+            if (xmlDocument.ChildNodes != null)
+            {
+                // Success
+            }
+            else
+            {
+                throw (Exception)asyncState;
+            }
+
+        }
         private static string GetDisassociateRequest(string entityName, Guid entityId, Relationship relationship, List<EntityReference> relatedEntities)
         {
 
@@ -264,7 +284,7 @@ namespace Xrm.Sdk
             }
             else
             {
-                throw new Exception((string)asyncState);
+                throw (Exception)asyncState;
             }
 
         }
@@ -397,7 +417,7 @@ namespace Xrm.Sdk
             }
             else
             {
-                throw new Exception((string)asyncState);
+                throw (Exception)asyncState;
             }
 
         }
@@ -426,7 +446,7 @@ namespace Xrm.Sdk
             }
             else
             {
-                throw new Exception((string)asyncState);
+                throw (Exception)asyncState;
             }
 
         }
@@ -495,7 +515,7 @@ namespace Xrm.Sdk
             }
             else
             {
-                throw new Exception((string)asyncState);
+                throw (Exception)asyncState;
             }
 
         }
@@ -530,7 +550,7 @@ namespace Xrm.Sdk
             }
             else
             {
-                throw new Exception((string)asyncState);
+                throw (Exception)asyncState;
             }
 
         }
@@ -578,6 +598,10 @@ namespace Xrm.Sdk
                         return new RetrieveMetadataChangesResponse(response);
                     case "RetrieveRelationship":
                         return new RetrieveRelationshipResponse(response);
+                    case "ExecuteWorkflow":
+                        return new ExecuteWorkflowResponse(response);
+                    case "Assign":
+                        return new AssignResponse(response);
                     default:
                         // Allow custom actions/message types to be registered
                         if (ExecuteMessageResponseTypes.ContainsKey(type))
@@ -592,7 +616,7 @@ namespace Xrm.Sdk
             }
             else
             {
-                throw new Exception((string)asyncState);
+                throw (Exception)asyncState;
             }
 
         }
@@ -643,7 +667,7 @@ namespace Xrm.Sdk
             bool isAsync = (asyncCallback != null);
 
             string xml = getSoapEnvelope(soapXmlPacket);
-            string msg = null;
+            Exception msg = null;
             XmlHttpRequest xmlHttpRequest = new XmlHttpRequest();
 
 
@@ -668,7 +692,7 @@ namespace Xrm.Sdk
                     {
                         // Capture the result
                         XmlDocument resultXml = xmlHttpRequest.ResponseXml;
-                        string errorMsg = null;
+                        Exception errorMsg = null;
                         if (xmlHttpRequest.Status != 200)
                         {
                             errorMsg = GetSoapFault(resultXml);
@@ -712,7 +736,7 @@ namespace Xrm.Sdk
 
                 if (msg != null)
                 {
-                    throw new Exception("CRM SDK Call returned error: '" + msg + "'");
+                    throw msg;
                 }
                 else
                 {
@@ -723,13 +747,14 @@ namespace Xrm.Sdk
             }
         }
 
-        private static string GetSoapFault(XmlDocument response)
+        private static Exception GetSoapFault(XmlDocument response)
         {
             string errorMsg = null;
-
+            string traceDetails = null;
+            string errorCode = null;
             if (response==null || response.FirstChild.Name != "s:Envelope")
             {
-                return "No SOAP Envelope in response";
+                return new Exception("No SOAP Envelope in response");
             }
             XmlNode soapResponseBody = response.FirstChild.FirstChild;
 
@@ -737,13 +762,20 @@ namespace Xrm.Sdk
             XmlNode errorNode = XmlHelper.SelectSingleNode(soapResponseBody, "Fault");
             if (errorNode != null)
             {
-                // Get the detail if there is any
-                XmlNode detailMessageNode = XmlHelper.SelectSingleNodeDeep(errorNode, "Message");
-                if (detailMessageNode != null)
+                XmlNode details = XmlHelper.SelectSingleNode(errorNode, "detail");
+                if (details != null)
                 {
-                    errorMsg = XmlHelper.GetNodeTextValue(detailMessageNode);
+                    XmlNode serviceFaultNode = XmlHelper.SelectSingleNode(details, "OrganizationServiceFault");
+                    if (serviceFaultNode != null)
+                    {
+                        // Get the detail if there is any
+                        errorMsg = XmlHelper.SelectSingleNodeValue(serviceFaultNode, "Message");          
+                        traceDetails = XmlHelper.SelectSingleNodeValue(serviceFaultNode, "TraceText");
+                        errorCode = XmlHelper.SelectSingleNodeValue(serviceFaultNode, "ErrorCode");
+                    }
                 }
-                else
+
+                if (errorMsg == null)
                 {
                     XmlNode faultMessage = XmlHelper.SelectSingleNode(errorNode, "faultstring");
                     if (faultMessage != null)
@@ -752,7 +784,11 @@ namespace Xrm.Sdk
                     }
                 }
             }
-            return errorMsg;
+
+            Dictionary<string, string> info = new Dictionary<string, string>();
+            info["Trace"] = traceDetails;
+            info["ErrorCode"] = errorCode;
+            return Exception.Create(errorMsg, info);
         }
         #endregion
     }

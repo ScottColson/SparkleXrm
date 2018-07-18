@@ -1,8 +1,45 @@
 //! ClientHooks.debug.js
 //
-waitForScripts("ribboncommands",["mscorlib","xrm"],
-function () {
-
+var scriptLoader = scriptLoader || {
+    delayedLoads: [],
+    load: function (name, requires, script) {
+        window._loadedScripts = window._loadedScripts || {};
+        // Check for loaded scripts, if not all loaded then register delayed Load
+        if (requires == null || requires.length == 0 || scriptLoader.areLoaded(requires)) {
+            scriptLoader.runScript(name, script);
+        }
+        else {
+            // Register an onload check
+            scriptLoader.delayedLoads.push({ name: name, requires: requires, script: script });
+        }
+    },
+    runScript: function (name, script) {      
+        script.call(window);
+        window._loadedScripts[name] = true;
+        scriptLoader.onScriptLoaded(name);
+    },
+    onScriptLoaded: function (name) {
+        // Check for any registered delayed Loads
+        scriptLoader.delayedLoads.forEach(function (script) {
+            if (script.loaded == null && scriptLoader.areLoaded(script.requires)) {
+                script.loaded = true;
+                scriptLoader.runScript(script.name, script.script);
+            }
+        });
+    },
+    areLoaded: function (requires) {
+        var allLoaded = true;
+        for (var i = 0; i < requires.length; i++) {
+			var isLoaded = (window._loadedScripts[requires[i]] != null);
+            allLoaded = allLoaded && isLoaded;
+            if (!allLoaded)
+                break;
+        }
+        return allLoaded;
+    }
+};
+ 
+scriptLoader.load("clienthooks", ["mscorlib","xrm"], function () {
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -32,7 +69,7 @@ window.ActivityPointer = function ActivityPointer() {
     /// </field>
     /// <field name="activitytypecode" type="String">
     /// </field>
-    /// <field name="regardingobjectid" type="Xrm.Sdk.EntityReference">
+    /// <field name="regardingobjectid" type="SparkleXrm.Sdk.EntityReference">
     /// </field>
     /// <field name="displaySubject" type="String">
     /// </field>
@@ -69,38 +106,38 @@ window.dev1_session = function dev1_session() {
     /// </field>
     /// <field name="dev1_activitytypename" type="String">
     /// </field>
-    /// <field name="dev1_emailid" type="Xrm.Sdk.EntityReference">
+    /// <field name="dev1_emailid" type="SparkleXrm.Sdk.EntityReference">
     /// </field>
-    /// <field name="dev1_phonecallid" type="Xrm.Sdk.EntityReference">
+    /// <field name="dev1_phonecallid" type="SparkleXrm.Sdk.EntityReference">
     /// </field>
-    /// <field name="dev1_letterid" type="Xrm.Sdk.EntityReference">
+    /// <field name="dev1_letterid" type="SparkleXrm.Sdk.EntityReference">
     /// </field>
-    /// <field name="dev1_taskid" type="Xrm.Sdk.EntityReference">
+    /// <field name="dev1_taskid" type="SparkleXrm.Sdk.EntityReference">
     /// </field>
     /// <field name="dev1_endtime" type="Date">
     /// </field>
     /// <field name="dev1_row" type="Nullable`1">
     /// </field>
-    /// <field name="statuscode" type="Xrm.Sdk.OptionSetValue">
+    /// <field name="statuscode" type="SparkleXrm.Sdk.OptionSetValue">
     /// </field>
-    /// <field name="dev1_sessionid" type="Xrm.Sdk.Guid">
+    /// <field name="dev1_sessionid" type="SparkleXrm.Sdk.Guid">
     /// </field>
     /// <field name="dev1_starttime" type="Date">
     /// </field>
-    /// <field name="contract_customerid" type="Xrm.Sdk.EntityReference">
+    /// <field name="contract_customerid" type="SparkleXrm.Sdk.EntityReference">
     /// </field>
-    /// <field name="incident_customerid" type="Xrm.Sdk.EntityReference">
+    /// <field name="incident_customerid" type="SparkleXrm.Sdk.EntityReference">
     /// </field>
-    /// <field name="opportunity_customerid" type="Xrm.Sdk.EntityReference">
+    /// <field name="opportunity_customerid" type="SparkleXrm.Sdk.EntityReference">
     /// </field>
-    /// <field name="activitypointer_regardingobjectid" type="Xrm.Sdk.EntityReference">
+    /// <field name="activitypointer_regardingobjectid" type="SparkleXrm.Sdk.EntityReference">
     /// </field>
     /// <field name="activitypointer_subject" type="String">
     /// </field>
-    /// <field name="account" type="Xrm.Sdk.EntityReference">
+    /// <field name="account" type="SparkleXrm.Sdk.EntityReference">
     /// </field>
     dev1_session.initializeBase(this, [ 'dev1_session' ]);
-    this._metaData['dev1_duration'] = Xrm.Sdk.AttributeTypes.int_;
+    this._metaData['dev1_duration'] = SparkleXrm.Sdk.AttributeTypes.int_;
 }
 dev1_session.prototype = {
     createdon: null,
@@ -144,6 +181,32 @@ Client.TimeSheet.Model.Queries = function Client_TimeSheet_Model_Queries() {
 }
 
 
+Type.registerNamespace('ClientHooks');
+
+////////////////////////////////////////////////////////////////////////////////
+// ClientHooks.OpportunityForm
+
+ClientHooks.OpportunityForm = function ClientHooks_OpportunityForm() {
+}
+ClientHooks.OpportunityForm.onload = function ClientHooks_OpportunityForm$onload() {
+    Xrm.Page.data.process.addOnStageChange(function(context) {
+        debugger;
+    });
+    Xrm.Page.data.process.addOnStageSelected(function(context) {
+        debugger;
+    });
+    debugger;
+    var process = Xrm.Page.data.process.getActiveProcess();
+    var stage = Xrm.Page.data.process.getActiveStage();
+    var stages = process.getStages();
+    if (stages.getLength() > 0) {
+        var stage0 = stages.get(0);
+        var steps = stage0.getSteps();
+    }
+    Xrm.Page.ui.process.setVisible(true);
+}
+
+
 Type.registerNamespace('Client.TimeSheet.RibbonCommands');
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -168,8 +231,8 @@ Client.TimeSheet.RibbonCommands.Global.newAccountCallBack = function Client_Time
 Client.TimeSheet.RibbonCommands.Global.getRunningActivities = function Client_TimeSheet_RibbonCommands_Global$getRunningActivities(commandProperties) {
     /// <param name="commandProperties" type="Object">
     /// </param>
-    var runningActivities = Xrm.Sdk.OrganizationServiceProxy.retrieveMultiple(Client.TimeSheet.Model.Queries.currentOpenActivitesWithSessions);
-    var section = new Xrm.Sdk.Ribbon.RibbonMenuSection('dev1.Activities.Section', 'Activities', 1, 'Menu16');
+    var runningActivities = SparkleXrm.Sdk.OrganizationServiceProxy.retrieveMultiple(Client.TimeSheet.Model.Queries.currentOpenActivitesWithSessions);
+    var section = new SparkleXrm.Sdk.Ribbon.RibbonMenuSection('dev1.Activities.Section', 'Activities', 1, 'Menu16');
     var i = 0;
     var $enum1 = ss.IEnumerator.getEnumerator(runningActivities.get_entities());
     while ($enum1.moveNext()) {
@@ -179,10 +242,10 @@ Client.TimeSheet.RibbonCommands.Global.getRunningActivities = function Client_Ti
         if (isRunning) {
             image = 'WebResources/dev1_/images/stop.gif';
         }
-        section.addButton(new Xrm.Sdk.Ribbon.RibbonButton('dev1.Activity.' + activity['a.activityid'].toString(), i, activity['a.subject'].toString(), 'dev1.ApplicationRibbon.StartStopActivity.Command', image, image));
+        section.addButton(new SparkleXrm.Sdk.Ribbon.RibbonButton('dev1.Activity.' + activity['a.activityid'].toString(), i, activity['a.subject'].toString(), 'dev1.ApplicationRibbon.StartStopActivity.Command', image, image));
         i++;
     }
-    var activities = new Xrm.Sdk.Ribbon.RibbonMenu('dev1.Activities').addSection(section);
+    var activities = new SparkleXrm.Sdk.Ribbon.RibbonMenu('dev1.Activities').addSection(section);
     commandProperties.PopulationXML = activities.serialiseToRibbonXml();
 }
 Client.TimeSheet.RibbonCommands.Global.startStopActivity = function Client_TimeSheet_RibbonCommands_Global$startStopActivity(commandProperties) {
@@ -195,9 +258,10 @@ Client.TimeSheet.RibbonCommands.Global.startStopActivity = function Client_TimeS
 }
 
 
-ActivityPointer.registerClass('ActivityPointer', Xrm.Sdk.Entity);
-dev1_session.registerClass('dev1_session', Xrm.Sdk.Entity);
+ActivityPointer.registerClass('ActivityPointer', SparkleXrm.Sdk.Entity);
+dev1_session.registerClass('dev1_session', SparkleXrm.Sdk.Entity);
 Client.TimeSheet.Model.Queries.registerClass('Client.TimeSheet.Model.Queries');
+ClientHooks.OpportunityForm.registerClass('ClientHooks.OpportunityForm');
 Client.TimeSheet.RibbonCommands.Global.registerClass('Client.TimeSheet.RibbonCommands.Global');
 ActivityPointer.entityLogicalName = 'activitypointer';
 ActivityPointer.entityTypeCode = 4200;
@@ -207,44 +271,3 @@ Client.TimeSheet.Model.Queries.currentRunningActivities = "<fetch version='1.0' 
 Client.TimeSheet.Model.Queries.currentOpenActivitesWithSessions = "<fetch version='1.0' output-format='xml-platform' mapping='logical' aggregate='true'>" + "<entity name='activitypointer'>" + "<attribute name='subject' groupby='true' alias='a.subject'/>" + "<attribute name='activityid' groupby='true' alias='a.activityid'/>" + "<filter type='and'>" + "<condition attribute='ownerid' operator='eq-userid'  />" + "<condition attribute='statecode' operator='not-in'>" + '<value>1</value>' + '<value>2</value>' + '</condition>' + '</filter>' + "<link-entity name='dev1_session' from='dev1_activityid' to='activityid' alias='s'>" + "<attribute name='dev1_runningflag' aggregate='max' distinct='true' alias='isRunning'/>" + '</link-entity>' + '</entity>' + '</fetch>';
 Client.TimeSheet.Model.Queries.sessionsByWeekStartDate = "\r\n                    <fetch>\r\n                        <entity name='dev1_session' >\r\n                            <attribute name='dev1_sessionid' />\r\n                            <attribute name='dev1_description' />\r\n                            <attribute name='dev1_activityid' />\r\n                            <attribute name='dev1_activitytypename' />\r\n                            <attribute name='dev1_starttime' />\r\n                            <attribute name='dev1_endtime' />\r\n                            <attribute name='dev1_duration' />\r\n                            <attribute name='dev1_taskid' />\r\n                            <attribute name='dev1_letterid' />\r\n                            <attribute name='dev1_emailid' />\r\n                            <attribute name='dev1_phonecallid' />\r\n                            <attribute name='statuscode' />\r\n                            <attribute name='dev1_row' />\r\n                            <order attribute='dev1_row' descending='false' />\r\n                            <filter type='and'>\r\n                                <condition attribute='dev1_starttime' operator='on-or-after' value='{0}' />\r\n                                <condition attribute='dev1_starttime' operator='on-or-before' value='{1}' />\r\n                            </filter>\r\n                            <link-entity name='activitypointer' from='activityid' to='dev1_activityid' alias='aa' >\r\n                                <attribute name='regardingobjectid' alias='activitypointer_regardingobjectid' />\r\n                                <attribute name='subject' alias='activitypointer_subject' />\r\n                                <link-entity name='contract' from='contractid' to='regardingobjectid' visible='false' link-type='outer' alias='contract' >\r\n                                    <attribute name='customerid' alias='contract_customerid'/>\r\n                                </link-entity>\r\n                                <link-entity name='opportunity' from='opportunityid' to='regardingobjectid' visible='false' link-type='outer' alias='opportunity' >\r\n                                    <attribute name='customerid' alias='opportunity_customerid'/>\r\n                                </link-entity>\r\n                                <link-entity name='incident' from='incidentid' to='regardingobjectid' visible='false' link-type='outer' alias='incident' >\r\n                                    <attribute name='customerid' alias='incident_customerid'/>\r\n                                </link-entity>\r\n                            </link-entity>\r\n                        </entity>\r\n                    </fetch>";
 });
-
-
-function waitForScripts(name, scriptNames, callback) {
-    var hasLoaded = false;
-    window._loadedScripts = window._loadedScripts || [];
-    function checkScripts() {
-        var allLoaded = true;
-        for (var i = 0; i < scriptNames.length; i++) {
-            var hasLoaded = true;
-            var script = scriptNames[i];
-            switch (script) {
-                case "mscorlib":
-                    hasLoaded = typeof (window.ss) != "undefined";
-                    break;
-                case "jquery":
-                    hasLoaded = typeof (window.jQuery) != "undefined";
-                    break;
-				 case "jquery-ui":
-                    hasLoaded = typeof (window.xrmjQuery.ui) != "undefined";
-                    break;
-                default:
-                    hasLoaded = window._loadedScripts[script];
-                    break;
-            }
-
-            allLoaded = allLoaded && hasLoaded;
-            if (!allLoaded) {
-                setTimeout(checkScripts, 10);
-                break;
-            }
-        }
-
-        if (allLoaded) {
-            callback();
-            window._loadedScripts[name] = true;
-        }
-    }
-   
-	checkScripts();
-	
-}

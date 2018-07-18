@@ -80,11 +80,11 @@ classes should alter those!
 }
 
 .slick-sort-indicator-desc {
-    background: url(images/grid_ctrl_imgs.png) no-repeat scroll -157px -55px;
+  background: url(images/grid_ctrl_imgs.png) no-repeat scroll -171px -1px;
 }
 
 .slick-sort-indicator-asc {
-  background: url(images/grid_ctrl_imgs.png) no-repeat scroll -171px -1px;
+  background: url(images/grid_ctrl_imgs.png) no-repeat scroll -157px -55px;
 }
 
 .slick-resizable-handle {
@@ -893,6 +893,44 @@ TEXTAREA.sparkle-Input {
     padding-right: 3px;
 }
 
+.sparkle-menu-item-img img {
+    vertical-align: top;
+    max-height: 16px;
+    max-width: 16px;
+}
+
+.sparkle-menu-item-moreinfo {        
+    padding-left:19px;
+    color:#666666;
+    float:left;
+    width:150px;
+    text-overflow:ellipsis;
+}
+.sparkle-menu-footer {
+    position: absolute;
+    border-width: 1px;
+    border-style: solid;
+    border-color: rgb(160, 160, 160) rgb(128, 128, 128) rgb(128, 128, 128);
+    margin: 0px;
+    padding: 2px;
+    display: block;
+    background: white;
+    height: 16px;
+    min-width: 100px;
+}
+.sparkle-xrm .ui-autocomplete {
+    min-width:100px !important;
+}
+.sparkle-menu-footer-right {
+    position: absolute;
+    right: 4px;
+    top: 1px;
+}
+.sparkle-menu-footer-left {
+    position: absolute;
+    left: 4px;
+    top: 1px;
+}
 .sparkle-menu-item-label {
 }
 

@@ -113,9 +113,11 @@ namespace SparkleXrm.CustomBinding
 
             if (!Number.IsNaN(numericValue) && numericValue>=format.MinValue && numericValue<=format.MaxValue)
             {
-                // Set to precision
-                numericValue = NumberEx.Round(numericValue, format.Precision);
-
+                if (numericValue != null) // Issue #46
+                {
+                    // Set to precision
+                    numericValue = NumberEx.Round(numericValue, format.Precision);
+                }
                 observable.SetValue((Number)numericValue);
 
                 if (((string)Script.Literal("typeof({0}.isValid)", observable)) != "undefined")
@@ -127,7 +129,7 @@ namespace SparkleXrm.CustomBinding
                 {
                     string formattedNumber = FormatNumber(numericValue, format);
                     inputField.Value(formattedNumber);
-                    inputField.Blur();
+                    //inputField.Blur();
                 }
             }
             else

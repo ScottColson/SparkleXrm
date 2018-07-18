@@ -20,6 +20,7 @@ namespace SparkleXrm.GridEditor
         public bool SelectActiveRow = true;
         public bool AddCheckBoxSelectColumn = true;
         public bool MultiSelect = true;
+        public bool ValidationPopupUseFitPosition = false;
         private string _sortColumnName;
         private Grid _grid;
         /// <summary>
@@ -383,7 +384,7 @@ namespace SparkleXrm.GridEditor
         public void AddRefreshButton(string gridId, DataViewBase dataView)
         {
             jQueryObject gridDiv = jQuery.Select("#" + gridId);
-            jQueryObject refreshButton = jQuery.FromHtml("<div id='refreshButton' class='sparkle-grid-refresh-button' style='left: auto; right: 0px; display: inline;'><a href='#' id='refreshButtonLink' tabindex='0'><img id='grid_refresh' src='../../sparkle_/css/images/transparent_spacer.gif' class='sparkle-grid-refresh-button-img' style='cursor:pointer' alt='Refresh list' title='Refresh list'></a></div>").AppendTo(gridDiv);
+            jQueryObject refreshButton = jQuery.FromHtml("<div id='refreshButton' class='sparkle-grid-refresh-button' style='left: auto; right: 0px; display: inline;'><a href='#' id='refreshButtonLink' tabindex='0'><span id='grid_refresh' class='sparkle-grid-refresh-button-img' style='cursor:pointer'></span></a></div>").AppendTo(gridDiv);
             refreshButton.Find("#refreshButtonLink").Click(delegate(jQueryEvent e)
             {
                 dataView.Reset();
@@ -477,10 +478,11 @@ namespace SparkleXrm.GridEditor
                     validationIndicator = jQuery.FromHtml("<div class='popup-box-container'><div width='16px' height='16px' class='sparkle-imagestrip-inlineedit_warning popup-box-icon' alt='Error' id='icon'/><div class='popup-box validation-text'/></div>").AppendTo(Document.Body);
                     validationIndicator.Find(".validation-text").Text(errorMessage);
 
+                    string colisionPosition = ValidationPopupUseFitPosition ? "fit fit" : "none none";
                     Script.Literal(@"{0}.position({{
                                             my: 'left bottom',
                                             at: 'left top',
-                                            collision: 'fit fit',
+                                            collision: '{2}',
                                             of: {1}
                                         }})
                                         .show({{
@@ -495,7 +497,7 @@ namespace SparkleXrm.GridEditor
                                                 $( this ).remove();
                                                 
                                             }});
-                                        ", validationIndicator, activeCellNode); 
+                                        ", validationIndicator, activeCellNode, colisionPosition); 
 
 
                 }
@@ -521,7 +523,19 @@ namespace SparkleXrm.GridEditor
 
             dataView.OnDataLoaded.Subscribe(delegate(EventData e, object a)
             {
-                
+                // Sync the sorted columns
+                SortColData[] sortCols = grid.GetSortColumns();
+                bool noGridSort = sortCols == null || sortCols.Length == 0;
+
+                SortCol[] viewSortCols = dataView.GetSortColumns();
+                bool noViewCols = viewSortCols == null || viewSortCols.Length == 0;
+
+                if (noGridSort && !noViewCols)
+                {
+                    // Set grid sort
+                    grid.SetSortColumn(viewSortCols[0].AttributeName, viewSortCols[0].Ascending);
+                }
+
                 DataLoadedNotifyEventArgs args = (DataLoadedNotifyEventArgs)a;
                 if (args != null)
                 {
@@ -605,7 +619,7 @@ namespace SparkleXrm.GridEditor
         public static Column NewColumn(string field, string name, int width)
         {
             Column col = new Column();
-            col.Id = name;
+            col.Id = field; // The id should be the attribute name not the display label.
             col.Name = name;
             col.Width = width;
             col.MinWidth = col.Width;

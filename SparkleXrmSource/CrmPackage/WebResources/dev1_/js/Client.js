@@ -1,7 +1,5 @@
 //! Client.debug.js
 //
-waitForScripts("client",["mscorlib","xrm","xrmui", "jquery", "jquery-ui"],
-function () {
 
 (function($){
 
@@ -39,7 +37,7 @@ ActivityPointer.prototype = {
 
 window.dev1_session = function dev1_session() {
     dev1_session.initializeBase(this, [ 'dev1_session' ]);
-    this._metaData['dev1_duration'] = Xrm.Sdk.AttributeTypes.int_;
+    this._metaData['dev1_duration'] = SparkleXrm.Sdk.AttributeTypes.int_;
 }
 dev1_session.prototype = {
     createdon: null,
@@ -75,6 +73,28 @@ AddressSearch.App = function AddressSearch_App() {
 
 
 Type.registerNamespace('Client.ContactEditor.ViewModels');
+
+////////////////////////////////////////////////////////////////////////////////
+// Client.ContactEditor.ViewModels.AssignRequest
+
+Client.ContactEditor.ViewModels.AssignRequest = function Client_ContactEditor_ViewModels_AssignRequest() {
+}
+Client.ContactEditor.ViewModels.AssignRequest.prototype = {
+    target: null,
+    assignee: null,
+    
+    serialise: function Client_ContactEditor_ViewModels_AssignRequest$serialise() {
+        return '<request i:type="c:AssignRequest" xmlns:a="http://schemas.microsoft.com/xrm/2011/Contracts" xmlns:c="http://schemas.microsoft.com/crm/2011/Contracts">' + '        <a:Parameters xmlns:b="http://schemas.datacontract.org/2004/07/System.Collections.Generic">' + '          <a:KeyValuePairOfstringanyType>' + '            <b:key>Target</b:key>' + SparkleXrm.Sdk.Attribute.serialiseValue(this.target, null) + '          </a:KeyValuePairOfstringanyType>' + '          <a:KeyValuePairOfstringanyType>' + '            <b:key>Assignee</b:key>' + SparkleXrm.Sdk.Attribute.serialiseValue(this.assignee, null) + '          </a:KeyValuePairOfstringanyType>' + '        </a:Parameters>' + '        <a:RequestId i:nil="true" />' + '        <a:RequestName>Assign</a:RequestName>' + '      </request>';
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Client.ContactEditor.ViewModels.AssignResponse
+
+Client.ContactEditor.ViewModels.AssignResponse = function Client_ContactEditor_ViewModels_AssignResponse(response) {
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Client.ContactEditor.ViewModels.ContactValidation
@@ -126,6 +146,7 @@ Client.ContactEditor.ViewModels.ObservableContact = function Client_ContactEdito
     this.accountrolecode = ko.observable();
     this.numberofchildren = ko.observable();
     this.transactioncurrencyid = ko.observable();
+    this.parentcustomerid = ko.observable();
     this.creditlimit = ko.observable();
 }
 Client.ContactEditor.ViewModels.ObservableContact.prototype = {
@@ -144,6 +165,7 @@ Client.ContactEditor.ViewModels.ObservableContact.prototype = {
         this.accountrolecode(this._value.accountrolecode);
         this.numberofchildren(this._value.numberofchildren);
         this.transactioncurrencyid(this._value.transactioncurrencyid);
+        this.parentcustomerid(this._value.parentcustomerid);
         this.creditlimit(this._value.creditlimit);
     },
     
@@ -156,7 +178,8 @@ Client.ContactEditor.ViewModels.ObservableContact.prototype = {
         this._value.numberofchildren = this.numberofchildren();
         this._value.transactioncurrencyid = this.transactioncurrencyid();
         this._value.creditlimit = this.creditlimit();
-        this._value.entityState = Xrm.Sdk.EntityStates.changed;
+        this._value.entityState = SparkleXrm.Sdk.EntityStates.changed;
+        this._value.parentcustomerid = this.parentcustomerid();
         return this._value;
     }
 }
@@ -170,7 +193,7 @@ Client.ContactEditor.ViewModels.ContactsEditorViewModel = function Client_Contac
     this.selectedContact = ko.validatedObservable(new Client.ContactEditor.ViewModels.ObservableContact());
     this.contacts = new SparkleXrm.GridEditor.EntityDataViewModel(10, Client.ContactEditor.Model.Contact, true);
     this.contacts.add_onSelectedRowsChanged(ss.Delegate.create(this, this.onSelectedRowsChanged));
-    this.contacts.set_fetchXml("<fetch version='1.0' output-format='xml-platform' mapping='logical' returntotalrecordcount='true' no-lock='true' distinct='false' count='{0}' paging-cookie='{1}' page='{2}'>\r\n                <entity name='contact'>\r\n                    <attribute name='firstname' />\r\n                    <attribute name='lastname' />\r\n                    <attribute name='telephone1' />\r\n                    <attribute name='birthdate' />\r\n                    <attribute name='accountrolecode' />\r\n                    <attribute name='parentcustomerid'/>\r\n                    <attribute name='transactioncurrencyid'/>\r\n                    <attribute name='creditlimit'/>\r\n                    <attribute name='numberofchildren'/>\r\n                    <attribute name='contactid' />{3}\r\n                  </entity>\r\n                </fetch>");
+    this.contacts.set_fetchXml("<fetch version='1.0' output-format='xml-platform' mapping='logical' returntotalrecordcount='true' no-lock='true' distinct='false' count='{0}' paging-cookie='{1}' page='{2}'>\r\n                <entity name='contact'>\r\n                    <attribute name='firstname' />\r\n                    <attribute name='lastname' />\r\n                    <attribute name='telephone1' />\r\n                    <attribute name='birthdate' />\r\n                    <attribute name='accountrolecode' />\r\n                    <attribute name='parentcustomerid'/>\r\n                    <attribute name='transactioncurrencyid'/>\r\n                    <attribute name='creditlimit'/>\r\n                    <attribute name='numberofchildren'/>\r\n                    <attribute name='contactid' />\r\n                    <attribute name='ownerid'/>{3}\r\n                  </entity>\r\n                </fetch>");
     Client.ContactEditor.ViewModels.ContactValidation.register(this.contacts.validationBinder);
     Client.ContactEditor.ViewModels.ContactValidation.register(new SparkleXrm.ObservableValidationBinder(this.selectedContact));
 }
@@ -197,7 +220,7 @@ Client.ContactEditor.ViewModels.ContactsEditorViewModel.prototype = {
             IsRegisterFormValidDependantProperty.read = ss.Delegate.create(this, function() {
                 var state = this.selectedContact().entityState();
                 if (state != null) {
-                    return state !== Xrm.Sdk.EntityStates.created;
+                    return state !== SparkleXrm.Sdk.EntityStates.created;
                 }
                 else {
                     return true;
@@ -216,14 +239,14 @@ Client.ContactEditor.ViewModels.ContactsEditorViewModel.prototype = {
                 if ((this.selectedContact).isValid()) {
                     var contact = this.selectedContact().commit();
                     var selectedContact = this.selectedContact();
-                    if (selectedContact.entityState() === Xrm.Sdk.EntityStates.created) {
+                    if (selectedContact.entityState() === SparkleXrm.Sdk.EntityStates.created) {
                         this.contacts.addItem(contact);
                         var paging = this.contacts.getPagingInfo();
                         var newRow = new Array(1);
                         newRow[0] = {};
                         newRow[0].fromRow = paging.totalRows - ((paging.totalPages - 1) * paging.pageSize) - 1;
                         this.contacts.raiseOnSelectedRowsChanged(newRow);
-                        selectedContact.entityState(Xrm.Sdk.EntityStates.changed);
+                        selectedContact.entityState(SparkleXrm.Sdk.EntityStates.changed);
                     }
                     else {
                         this.contacts.refresh();
@@ -243,7 +266,7 @@ Client.ContactEditor.ViewModels.ContactsEditorViewModel.prototype = {
         if (this._addNewContact$1 == null) {
             this._addNewContact$1 = ss.Delegate.create(this, function() {
                 var newContact = new Client.ContactEditor.Model.Contact();
-                newContact.entityState = Xrm.Sdk.EntityStates.created;
+                newContact.entityState = SparkleXrm.Sdk.EntityStates.created;
                 this.selectedContact().setValue(newContact);
                 this.selectedContact.errors.showAllMessages(false);
             });
@@ -276,7 +299,7 @@ Client.ContactEditor.ViewModels.ContactsEditorViewModel.prototype = {
                 var $enum1 = ss.IEnumerator.getEnumerator(this.contacts.get_data());
                 while ($enum1.moveNext()) {
                     var item = $enum1.current;
-                    if (item != null && item.entityState !== Xrm.Sdk.EntityStates.unchanged) {
+                    if (item != null && item.entityState !== SparkleXrm.Sdk.EntityStates.unchanged) {
                         dirtyCollection.add(item);
                     }
                 }
@@ -307,9 +330,57 @@ Client.ContactEditor.ViewModels.ContactsEditorViewModel.prototype = {
     
     transactionCurrencySearchCommand: function Client_ContactEditor_ViewModels_ContactsEditorViewModel$transactionCurrencySearchCommand(term, callback) {
         var fetchXml = "<fetch version='1.0' output-format='xml-platform' mapping='logical' distinct='false'>\r\n                              <entity name='transactioncurrency'>\r\n                                <attribute name='transactioncurrencyid' />\r\n                                <attribute name='currencyname' />\r\n                                <attribute name='isocurrencycode' />\r\n                                <attribute name='currencysymbol' />\r\n                                <attribute name='exchangerate' />\r\n                                <attribute name='currencyprecision' />\r\n                                <order attribute='currencyname' descending='false' />\r\n                                <filter type='and'>\r\n                                  <condition attribute='currencyname' operator='like' value='%{0}%' />\r\n                                </filter>\r\n                              </entity>\r\n                            </fetch>";
-        fetchXml = String.format(fetchXml, Xrm.Sdk.XmlHelper.encode(term));
-        Xrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
-            var fetchResult = Xrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, Xrm.Sdk.Entity);
+        fetchXml = String.format(fetchXml, SparkleXrm.Sdk.XmlHelper.encode(term));
+        SparkleXrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
+            var fetchResult = SparkleXrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, SparkleXrm.Sdk.Entity);
+            callback(fetchResult);
+        });
+    },
+    
+    AddNewAccountInLine: function Client_ContactEditor_ViewModels_ContactsEditorViewModel$AddNewAccountInLine(item) {
+        var newRecordOptions = {};
+        newRecordOptions.openInNewWindow = true;
+        Xrm.Utility.openEntityForm('account', null, null, newRecordOptions);
+    },
+    
+    ownerSearchCommand: function Client_ContactEditor_ViewModels_ContactsEditorViewModel$ownerSearchCommand(term, callback) {
+        var searchTypes = {};
+        searchTypes['systemuser'] = 'fullname';
+        searchTypes['team'] = 'name';
+        var resultsBack = 0;
+        var mergedEntities = [];
+        var result = function(fetchResult) {
+            resultsBack++;
+            mergedEntities.addRange(fetchResult.get_entities().items());
+            mergedEntities.sort(function(x, y) {
+                return String.compare(x.getAttributeValueString('name'), y.getAttributeValueString('name'));
+            });
+            if (resultsBack === Object.getKeyCount(searchTypes)) {
+                var results = new SparkleXrm.Sdk.EntityCollection(mergedEntities);
+                callback(results);
+            }
+        };
+        var $enum1 = ss.IEnumerator.getEnumerator(Object.keys(searchTypes));
+        while ($enum1.moveNext()) {
+            var entity = $enum1.current;
+            this._searchRecords$1(term, result, entity, searchTypes[entity]);
+        }
+    },
+    
+    AccountSearchCommand: function Client_ContactEditor_ViewModels_ContactsEditorViewModel$AccountSearchCommand(term, callback) {
+        var fetchXml = "<fetch version='1.0' output-format='xml-platform' mapping='logical' distinct='false'>\r\n                              <entity name='account'>\r\n                                <attribute name='accountid' />\r\n                                <attribute name='name' />\r\n                                <attribute name='address1_city' />\r\n                                <order attribute='name' descending='false' />\r\n                                <filter type='and'>\r\n                                  <condition attribute='name' operator='like' value='%{0}%' />\r\n                                </filter>\r\n                              </entity>\r\n                            </fetch>";
+        fetchXml = String.format(fetchXml, SparkleXrm.Sdk.XmlHelper.encode(term));
+        SparkleXrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
+            var fetchResult = SparkleXrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, SparkleXrm.Sdk.Entity);
+            callback(fetchResult);
+        });
+    },
+    
+    _searchRecords$1: function Client_ContactEditor_ViewModels_ContactsEditorViewModel$_searchRecords$1(term, callback, entityType, entityNameAttribute) {
+        var fetchXml = "<fetch version='1.0' output-format='xml-platform' mapping='logical' distinct='false' no-lock='true' count='25'>\r\n                              <entity name='{1}'>\r\n                                <attribute name='{2}' alias='name' />\r\n                                <order attribute='{2}' descending='false' />\r\n                                <filter type='and'>\r\n                                  <condition attribute='{2}' operator='like' value='%{0}%' />\r\n                                </filter>\r\n                              </entity>\r\n                            </fetch>";
+        fetchXml = String.format(fetchXml, SparkleXrm.Sdk.XmlHelper.encode(term), entityType, entityNameAttribute);
+        SparkleXrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
+            var fetchResult = SparkleXrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, SparkleXrm.Sdk.Entity);
             callback(fetchResult);
         });
     },
@@ -320,11 +391,11 @@ Client.ContactEditor.ViewModels.ContactsEditorViewModel.prototype = {
     _saveNextRecord$1: function Client_ContactEditor_ViewModels_ContactsEditorViewModel$_saveNextRecord$1(dirtyCollection, errorMessage, callBack) {
         var contactToSave = dirtyCollection[0];
         if (contactToSave.contactid == null) {
-            Xrm.Sdk.OrganizationServiceProxy.beginCreate(contactToSave, ss.Delegate.create(this, function(r) {
+            SparkleXrm.Sdk.OrganizationServiceProxy.beginCreate(contactToSave, ss.Delegate.create(this, function(r) {
                 try {
-                    var newID = Xrm.Sdk.OrganizationServiceProxy.endCreate(r);
+                    var newID = SparkleXrm.Sdk.OrganizationServiceProxy.endCreate(r);
                     contactToSave.contactid = newID;
-                    contactToSave.entityState = Xrm.Sdk.EntityStates.unchanged;
+                    contactToSave.entityState = SparkleXrm.Sdk.EntityStates.unchanged;
                 }
                 catch (ex) {
                     errorMessage = errorMessage + ex.message + '\n';
@@ -339,10 +410,17 @@ Client.ContactEditor.ViewModels.ContactsEditorViewModel.prototype = {
             }));
         }
         else {
-            Xrm.Sdk.OrganizationServiceProxy.beginUpdate(contactToSave, ss.Delegate.create(this, function(r) {
+            SparkleXrm.Sdk.OrganizationServiceProxy.beginUpdate(contactToSave, ss.Delegate.create(this, function(r) {
                 try {
-                    Xrm.Sdk.OrganizationServiceProxy.endUpdate(r);
-                    contactToSave.entityState = Xrm.Sdk.EntityStates.unchanged;
+                    SparkleXrm.Sdk.OrganizationServiceProxy.endUpdate(r);
+                    contactToSave.entityState = SparkleXrm.Sdk.EntityStates.unchanged;
+                    if (contactToSave.ownerid != null) {
+                        SparkleXrm.Sdk.OrganizationServiceProxy.registerExecuteMessageResponseType('Assign', Client.ContactEditor.ViewModels.AssignResponse);
+                        var assignRequest = new Client.ContactEditor.ViewModels.AssignRequest();
+                        assignRequest.target = contactToSave.toEntityReference();
+                        assignRequest.assignee = contactToSave.ownerid;
+                        SparkleXrm.Sdk.OrganizationServiceProxy.execute(assignRequest);
+                    }
                 }
                 catch (ex) {
                     errorMessage = errorMessage + ex.message + '\n';
@@ -359,6 +437,7 @@ Client.ContactEditor.ViewModels.ContactsEditorViewModel.prototype = {
     },
     
     init: function Client_ContactEditor_ViewModels_ContactsEditorViewModel$init() {
+        this.contacts.sortBy(new SparkleXrm.GridEditor.SortCol('lastname', true));
         this.contacts.refresh();
     }
 }
@@ -412,7 +491,7 @@ Client.DataGrouping.ViewModels.DataGroupingViewModel.prototype = {
         var data = [];
         for (var i = 0; i < 100; i++) {
             var d = new Client.DataGrouping.ViewModels.Project();
-            Xrm.ArrayEx.add(data, d);
+            SparkleXrm.ArrayEx.add(data, d);
             d.id = 'id_' + i;
             d.num = i;
             d.title = 'Task ' + i;
@@ -677,7 +756,7 @@ Client.DataGrouping.ViewModels.TreeDataViewModel = function Client_DataGrouping_
         idCounter++;
         var group2 = new Client.DataGrouping.ViewModels.GroupedItems();
         group2.title = 'Project ' + idCounter.toString();
-        group2.id = new Xrm.Sdk.Guid(idCounter.toString());
+        group2.id = new SparkleXrm.Sdk.Guid(idCounter.toString());
         group2.childItems = [];
         for (var j = 0; j < 25; j++) {
             idCounter++;
@@ -692,12 +771,12 @@ Client.DataGrouping.ViewModels.TreeDataViewModel._createGroup$1 = function Clien
     var group1 = new Client.DataGrouping.ViewModels.GroupedItems();
     group1.title = projectName;
     group1.childItems = [];
-    group1.id = new Xrm.Sdk.Guid(id);
+    group1.id = new SparkleXrm.Sdk.Guid(id);
     return group1;
 }
 Client.DataGrouping.ViewModels.TreeDataViewModel._addItem$1 = function Client_DataGrouping_ViewModels_TreeDataViewModel$_addItem$1(group2, title) {
     var item1 = new Client.DataGrouping.ViewModels.TreeItem();
-    item1.id = new Xrm.Sdk.Guid('3');
+    item1.id = new SparkleXrm.Sdk.Guid('3');
     item1.status = '1';
     item1.project = title;
     group2.childItems.add(item1);
@@ -744,7 +823,7 @@ Client.DataGrouping.Views.DataGroupingView = function Client_DataGrouping_Views_
 }
 Client.DataGrouping.Views.DataGroupingView.init = function Client_DataGrouping_Views_DataGroupingView$init() {
     var vm = new Client.DataGrouping.ViewModels.DataGroupingViewModel();
-    var numberFormatInfo = Xrm.NumberEx.getNumberFormatInfo();
+    var numberFormatInfo = SparkleXrm.NumberEx.getNumberFormatInfo();
     numberFormatInfo.minValue = 0;
     numberFormatInfo.maxValue = 1000;
     numberFormatInfo.precision = 2;
@@ -874,13 +953,13 @@ Client.InlineSubGrids.ViewModels.ActivitySubGridViewModel = function Client_Inli
     var getviewfetchXml = "<fetch version='1.0' output-format='xml-platform' mapping='logical' distinct='false'>\r\n                              <entity name='savedquery'>\r\n                                <attribute name='name' />\r\n                                <attribute name='fetchxml' />\r\n                                <attribute name='layoutxml' />\r\n                                <attribute name='returnedtypecode' />\r\n                                <filter type='and'>\r\n                                <filter type='or'>";
     getviewfetchXml += "<condition attribute='returnedtypecode' operator='eq' value='" + '4200' + "'/>";
     getviewfetchXml += "\r\n                                    </filter>\r\n                                 <condition attribute='isquickfindquery' operator='eq' value='1'/>\r\n                                    <condition attribute='isdefault' operator='eq' value='1'/>\r\n                                </filter>\r\n                               \r\n                              </entity>\r\n                            </fetch>";
-    var quickFindQuery = Xrm.Sdk.OrganizationServiceProxy.retrieveMultiple(getviewfetchXml);
+    var quickFindQuery = SparkleXrm.Sdk.OrganizationServiceProxy.retrieveMultiple(getviewfetchXml);
     this._parser$1 = new Client.MultiEntitySearch.ViewModels.QueryParser();
     var view = quickFindQuery.get_entities().get_item(0);
     var fetchXml = view.getAttributeValueString('fetchxml');
     var layoutXml = view.getAttributeValueString('layoutxml');
     this.viewConfig = this._parser$1.parse(fetchXml, layoutXml);
-    this.viewConfig.dataView = new SparkleXrm.GridEditor.EntityDataViewModel(10, Xrm.Sdk.Entity, true);
+    this.viewConfig.dataView = new SparkleXrm.GridEditor.EntityDataViewModel(10, SparkleXrm.Sdk.Entity, true);
     this._parser$1.queryDisplayNames();
 }
 Client.InlineSubGrids.ViewModels.ActivitySubGridViewModel.prototype = {
@@ -921,7 +1000,7 @@ Client.InlineSubGrids.ViewModels.BooksCollection.prototype = {
     },
     
     addItem: function Client_InlineSubGrids_ViewModels_BooksCollection$addItem(item) {
-        Xrm.ArrayEx.add(this._books$1, item);
+        SparkleXrm.ArrayEx.add(this._books$1, item);
         this.refresh();
     },
     
@@ -956,7 +1035,7 @@ Client.InlineSubGrids.ViewModels.BooksCollection.prototype = {
             this._books$1.reverse();
         }
         this._books$1.sort(function(a, b) {
-            return Xrm.Sdk.Entity.sortDelegate(sorting.sortCol.field, a, b);
+            return SparkleXrm.Sdk.Entity.sortDelegate(sorting.sortCol.field, a, b);
         });
         if (!sorting.sortAsc) {
             this._books$1.reverse();
@@ -992,11 +1071,34 @@ Client.InlineSubGrids.ViewModels.BookValidation.publishDate = function Client_In
     var self = viewModel;
     return rules.addRule("Publish date can't be more than 1 year in the future", function(value) {
         var publishDate = value;
-        return (publishDate < Xrm.Sdk.DateTimeEx.dateAdd('days', 365, Date.get_today()));
+        return (publishDate < SparkleXrm.Sdk.DateTimeEx.dateAdd('days', 365, Date.get_today()));
     });
 }
 Client.InlineSubGrids.ViewModels.BookValidation.register = function Client_InlineSubGrids_ViewModels_BookValidation$register(binder) {
     binder.register('publishdate', Client.InlineSubGrids.ViewModels.BookValidation.publishDate);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Client.InlineSubGrids.ViewModels.ContactCardViewModel
+
+Client.InlineSubGrids.ViewModels.ContactCardViewModel = function Client_InlineSubGrids_ViewModels_ContactCardViewModel() {
+    Client.InlineSubGrids.ViewModels.ContactCardViewModel.initializeBase(this);
+    var fetchXml = "<fetch version='1.0' output-format='xml-platform' \r\n                                mapping='logical' distinct='false'>\r\n                              <entity name='contact'>\r\n                               <attribute name='fullname' />\r\n                                <attribute name='telephone1' />\r\n                                <attribute name='emailaddress1' />\r\n                                <attribute name='contactid' />\r\n                                <attribute name='jobtitle' />\r\n                                <attribute name='parentcustomerid' />\r\n                                <attribute name='address1_city' />\r\n                                <attribute name='entityimage_url' />\r\n                                <order attribute='fullname' descending='false' />\r\n                              </entity>\r\n                            </fetch>";
+    var contacts = SparkleXrm.Sdk.OrganizationServiceProxy.retrieveMultiple(fetchXml);
+    this.contacts = contacts.get_entities().items();
+}
+Client.InlineSubGrids.ViewModels.ContactCardViewModel.prototype = {
+    contacts: null,
+    
+    getImageUrl: function Client_InlineSubGrids_ViewModels_ContactCardViewModel$getImageUrl(contact) {
+        if (contact.entityimage_url != null) {
+            return Xrm.Page.context.getClientUrl() + contact.entityimage_url;
+        }
+        else {
+            return '../images/EmptyContactImage.png';
+        }
+    }
 }
 
 
@@ -1040,17 +1142,17 @@ Client.InlineSubGrids.ViewModels.SimpleEditableGridViewModel.prototype = {
             book1.title = 'The Lord of the Rings ' + i.toLocaleString();
             book1.author = 'J. R. R. Tolkien';
             book1.publishdate = new Date(1954, 7, 29);
-            book1.format = new Xrm.Sdk.OptionSetValue(1);
+            book1.format = new SparkleXrm.Sdk.OptionSetValue(1);
             book1.format.name = 'Paper Back';
-            book1.price = new Xrm.Sdk.Money(12.99);
+            book1.price = new SparkleXrm.Sdk.Money(12.99);
             this.Books.addItem(book1);
             var book2 = new Client.InlineSubGrids.ViewModels.Book();
             book2.title = 'The Hobbit ' + i.toLocaleString();
             book2.author = 'J. R. R. Tolkien';
             book2.publishdate = new Date(1932, 9, 21);
-            book2.format = new Xrm.Sdk.OptionSetValue(2);
+            book2.format = new SparkleXrm.Sdk.OptionSetValue(2);
             book2.format.name = 'Hard Back';
-            book2.price = new Xrm.Sdk.Money(9.99);
+            book2.price = new SparkleXrm.Sdk.Money(9.99);
             this.Books.addItem(book2);
         }
         this.Books.unsuspend();
@@ -1083,12 +1185,12 @@ Client.InlineSubGrids.ViewModels.SimpleEditableGridViewModel.prototype = {
                 entities.add(language);
             }
         }
-        var results = new Xrm.Sdk.EntityCollection(entities);
+        var results = new SparkleXrm.Sdk.EntityCollection(entities);
         callback(results);
     },
     
     _addLanguage$1: function Client_InlineSubGrids_ViewModels_SimpleEditableGridViewModel$_addLanguage$1(id, name) {
-        var language = new Xrm.Sdk.Entity('language');
+        var language = new SparkleXrm.Sdk.Entity('language');
         language.id = id;
         language.setAttributeValue('name', name);
         this._languages$1.add(language);
@@ -1144,10 +1246,10 @@ Client.Views.InlineSubGrids.ActivitySubGridView._onChangeHeight = function Clien
 Client.Views.InlineSubGrids.SimpleEditableGridView = function Client_Views_InlineSubGrids_SimpleEditableGridView() {
 }
 Client.Views.InlineSubGrids.SimpleEditableGridView.init = function Client_Views_InlineSubGrids_SimpleEditableGridView$init() {
-    Xrm.PageEx.majorVersion = 2013;
+    SparkleXrm.Xrm.PageEx.majorVersion = 2013;
     $(function() {
         ko.validation.registerExtenders();
-        Xrm.Sdk.OrganizationServiceProxy.getUserSettings();
+        SparkleXrm.Sdk.OrganizationServiceProxy.getUserSettings();
         var vm = new Client.InlineSubGrids.ViewModels.SimpleEditableGridViewModel();
         var dataViewBinder = new SparkleXrm.GridEditor.GridDataViewBinder();
         dataViewBinder.addCheckBoxSelectColumn = true;
@@ -1178,6 +1280,34 @@ Client.Views.InlineSubGrids.SimpleEditableGridView.init = function Client_Views_
 }
 
 
+Type.registerNamespace('Client.InlineSubGrids.Views');
+
+////////////////////////////////////////////////////////////////////////////////
+// Client.InlineSubGrids.Views.ContactCardView
+
+Client.InlineSubGrids.Views.ContactCardView = function Client_InlineSubGrids_Views_ContactCardView() {
+}
+Client.InlineSubGrids.Views.ContactCardView.init = function Client_InlineSubGrids_Views_ContactCardView$init() {
+    var vm = new Client.InlineSubGrids.ViewModels.ContactCardViewModel();
+    Client.InlineSubGrids.Views.ContactCardView._wall = new freewall('#freewall');
+    var options = {};
+    options.selector = '.brick';
+    options.animate = true;
+    options.cellW = 150;
+    options.cellH = 'auto';
+    options.onResize = function() {
+        Client.InlineSubGrids.Views.ContactCardView._wall.fitWidth();
+    };
+    Client.InlineSubGrids.Views.ContactCardView._wall.reset(options);
+    SparkleXrm.ViewBase.registerViewModel(vm);
+}
+Client.InlineSubGrids.Views.ContactCardView.onAfterRender = function Client_InlineSubGrids_Views_ContactCardView$onAfterRender(rendered) {
+    $(rendered).find('img').load(function(e) {
+        Client.InlineSubGrids.Views.ContactCardView._wall.fitWidth();
+    });
+}
+
+
 Type.registerNamespace('Client.MultiEntitySearch.ViewModels');
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1187,7 +1317,7 @@ Client.MultiEntitySearch.ViewModels.MultiSearchViewModel = function Client_Multi
     this.searchTerm = ko.observable();
     this.config = ko.observableArray();
     Client.MultiEntitySearch.ViewModels.MultiSearchViewModel.initializeBase(this);
-    var dataConfig = Xrm.PageEx.getWebResourceData();
+    var dataConfig = SparkleXrm.Xrm.PageEx.getWebResourceData();
     var typeCodes = [];
     var typeNames = [];
     if (Object.keyExists(dataConfig, 'typeCodes')) {
@@ -1205,7 +1335,7 @@ Client.MultiEntitySearch.ViewModels.MultiSearchViewModel = function Client_Multi
         getviewfetchXml += "<condition attribute='returnedtypecode' operator='eq' value='" + view + "'/>";
     }
     getviewfetchXml += "\r\n                                    </filter>\r\n                                 <condition attribute='isquickfindquery' operator='eq' value='1'/>\r\n                                    <condition attribute='isdefault' operator='eq' value='1'/>\r\n                                </filter>\r\n                               \r\n                              </entity>\r\n                            </fetch>";
-    var quickFindQuery = Xrm.Sdk.OrganizationServiceProxy.retrieveMultiple(getviewfetchXml);
+    var quickFindQuery = SparkleXrm.Sdk.OrganizationServiceProxy.retrieveMultiple(getviewfetchXml);
     this.parser = new Client.MultiEntitySearch.ViewModels.QueryParser();
     var entityLookup = {};
     var $enum2 = ss.IEnumerator.getEnumerator(quickFindQuery.get_entities());
@@ -1220,7 +1350,7 @@ Client.MultiEntitySearch.ViewModels.MultiSearchViewModel = function Client_Multi
         var fetchXml = view.getAttributeValueString('fetchxml');
         var layoutXml = view.getAttributeValueString('layoutxml');
         var config = this.parser.parse(fetchXml, layoutXml);
-        config.dataView = new SparkleXrm.GridEditor.EntityDataViewModel(10, Xrm.Sdk.Entity, true);
+        config.dataView = new SparkleXrm.GridEditor.EntityDataViewModel(10, SparkleXrm.Sdk.Entity, true);
         this.config.push(config);
     }
     this.parser.queryDisplayNames();
@@ -1310,7 +1440,7 @@ Client.MultiEntitySearch.ViewModels.QueryParser.prototype = {
     },
     
     queryDisplayNames: function Client_MultiEntitySearch_ViewModels_QueryParser$queryDisplayNames() {
-        var builder = new Xrm.Sdk.Metadata.Query.MetadataQueryBuilder();
+        var builder = new SparkleXrm.Sdk.Metadata.Query.MetadataQueryBuilder();
         var entities = [];
         var attributes = [];
         var $enum1 = ss.IEnumerator.getEnumerator(Object.keys(this._entityLookup));
@@ -1333,7 +1463,7 @@ Client.MultiEntitySearch.ViewModels.QueryParser.prototype = {
         builder.addEntities(entities, ['Attributes', 'DisplayName', 'DisplayCollectionName']);
         builder.addAttributes(attributes, ['DisplayName', 'AttributeType', 'IsPrimaryName']);
         builder.setLanguage(USER_LANGUAGE_CODE);
-        var response = Xrm.Sdk.OrganizationServiceProxy.execute(builder.request);
+        var response = SparkleXrm.Sdk.OrganizationServiceProxy.execute(builder.request);
         var $enum3 = ss.IEnumerator.getEnumerator(response.entityMetadata);
         while ($enum3.moveNext()) {
             var entityMetadata = $enum3.current;
@@ -1422,7 +1552,7 @@ Client.MultiEntitySearch.ViewModels.QueryParser.prototype = {
             }
         }));
         var fetchXml = config.fetchXml.html().replaceAll('</entity>', '{3}</entity>');
-        fetchXml = fetchXml.replaceAll('#Query#', Xrm.Sdk.XmlHelper.encode(searchTerm));
+        fetchXml = fetchXml.replaceAll('#Query#', SparkleXrm.Sdk.XmlHelper.encode(searchTerm));
         return fetchXml;
     }
 }
@@ -1458,8 +1588,8 @@ Type.registerNamespace('Client.QuoteLineItemEditor.Model');
 
 Client.QuoteLineItemEditor.Model.QuoteDetail = function Client_QuoteLineItemEditor_Model_QuoteDetail() {
     Client.QuoteLineItemEditor.Model.QuoteDetail.initializeBase(this, [ 'quotedetail' ]);
-    this._metaData['quantity'] = Xrm.Sdk.AttributeTypes.decimal_;
-    this._metaData['lineitemnumber'] = Xrm.Sdk.AttributeTypes.int_;
+    this._metaData['quantity'] = SparkleXrm.Sdk.AttributeTypes.decimal_;
+    this._metaData['lineitemnumber'] = SparkleXrm.Sdk.AttributeTypes.int_;
     this.add_propertyChanged(ss.Delegate.create(this, this._quoteProduct_PropertyChanged$1));
 }
 Client.QuoteLineItemEditor.Model.QuoteDetail.prototype = {
@@ -1480,7 +1610,7 @@ Client.QuoteLineItemEditor.Model.QuoteDetail.prototype = {
     
     _quoteProduct_PropertyChanged$1: function Client_QuoteLineItemEditor_Model_QuoteDetail$_quoteProduct_PropertyChanged$1(sender, e) {
         if (this.quantity != null && this.priceperunit != null) {
-            this.extendedamount = new Xrm.Sdk.Money(this.quantity * this.priceperunit.value);
+            this.extendedamount = new SparkleXrm.Sdk.Money(this.quantity * this.priceperunit.value);
         }
         this.isproductoverridden = !String.isNullOrEmpty(this.productdescription);
     }
@@ -1604,9 +1734,9 @@ Client.QuoteLineItemEditor.ViewModels.QuoteLineItemEditorViewModel.prototype = {
         var newLine = new Client.QuoteLineItemEditor.Model.QuoteDetail();
         $.extend(newLine, item);
         newLine.lineitemnumber = this.lines.getPagingInfo().totalRows + 1;
-        newLine.quoteid = new Xrm.Sdk.EntityReference(new Xrm.Sdk.Guid(this.getQuoteId()), 'quote', null);
+        newLine.quoteid = new SparkleXrm.Sdk.EntityReference(new SparkleXrm.Sdk.Guid(this.getQuoteId()), 'quote', null);
         if (this._transactionCurrencyId$1 != null) {
-            newLine.transactioncurrencyid = new Xrm.Sdk.EntityReference(new Xrm.Sdk.Guid(this._transactionCurrencyId$1), 'transactioncurrency', '');
+            newLine.transactioncurrencyid = new SparkleXrm.Sdk.EntityReference(new SparkleXrm.Sdk.Guid(this._transactionCurrencyId$1), 'transactioncurrency', '');
         }
         return newLine;
     },
@@ -1637,38 +1767,38 @@ Client.QuoteLineItemEditor.ViewModels.QuoteLineItemEditorViewModel.prototype = {
     
     productSearchCommand: function Client_QuoteLineItemEditor_ViewModels_QuoteLineItemEditorViewModel$productSearchCommand(term, callback) {
         var fetchXml = "<fetch version='1.0' output-format='xml-platform' mapping='logical' distinct='false'>\r\n                              <entity name='product'>\r\n                                <attribute name='productid' />\r\n                                <attribute name='name' />\r\n                                <order attribute='name' descending='false' />\r\n                                <filter type='and'>\r\n                                  <condition attribute='name' operator='like' value='%{0}%' />\r\n                                </filter>\r\n                              </entity>\r\n                            </fetch>";
-        fetchXml = String.format(fetchXml, Xrm.Sdk.XmlHelper.encode(term));
-        Xrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
-            var fetchResult = Xrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, Xrm.Sdk.Entity);
+        fetchXml = String.format(fetchXml, SparkleXrm.Sdk.XmlHelper.encode(term));
+        SparkleXrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
+            var fetchResult = SparkleXrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, SparkleXrm.Sdk.Entity);
             callback(fetchResult);
         });
     },
     
     uoMSearchCommand: function Client_QuoteLineItemEditor_ViewModels_QuoteLineItemEditorViewModel$uoMSearchCommand(term, callback) {
         var fetchXml = " <fetch version='1.0' output-format='xml-platform' mapping='logical' distinct='false'>\r\n                                  <entity name='uom'>\r\n                                    <attribute name='uomid' />\r\n                                    <attribute name='name' />\r\n                                    <order attribute='name' descending='false' />\r\n                                    <filter type='and'>\r\n                                      <condition attribute='name' operator='like' value='%{0}%' />\r\n                                    </filter>\r\n                                  </entity>\r\n                                </fetch>";
-        fetchXml = String.format(fetchXml, Xrm.Sdk.XmlHelper.encode(term));
-        Xrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
-            var fetchResult = Xrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, Xrm.Sdk.Entity);
+        fetchXml = String.format(fetchXml, SparkleXrm.Sdk.XmlHelper.encode(term));
+        SparkleXrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
+            var fetchResult = SparkleXrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, SparkleXrm.Sdk.Entity);
             callback(fetchResult);
         });
     },
     
     salesRepSearchCommand: function Client_QuoteLineItemEditor_ViewModels_QuoteLineItemEditorViewModel$salesRepSearchCommand(term, callback) {
         var fetchXml = "<fetch version='1.0' output-format='xml-platform' mapping='logical' distinct='false'>\r\n                                  <entity name='systemuser'>\r\n                                    <attribute name='fullname' />\r\n                                    <attribute name='businessunitid' />\r\n                                    <attribute name='title' />\r\n                                    <attribute name='address1_telephone1' />\r\n                                    <attribute name='systemuserid' />\r\n                                    <order attribute='fullname' descending='false' />\r\n                                    <filter type='and'>\r\n                                      <condition attribute='fullname' operator='like' value='%{0}%' />\r\n                                    </filter>\r\n                                  </entity>\r\n                                </fetch>";
-        fetchXml = String.format(fetchXml, Xrm.Sdk.XmlHelper.encode(term));
-        Xrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
-            var fetchResult = Xrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, Xrm.Sdk.Entity);
+        fetchXml = String.format(fetchXml, SparkleXrm.Sdk.XmlHelper.encode(term));
+        SparkleXrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
+            var fetchResult = SparkleXrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, SparkleXrm.Sdk.Entity);
             callback(fetchResult);
         });
     },
     
     _saveNextRecord$1: function Client_QuoteLineItemEditor_ViewModels_QuoteLineItemEditorViewModel$_saveNextRecord$1(dirtyCollection, errorMessages, callBack) {
         var itemToSave = dirtyCollection[0];
-        if (itemToSave.entityState === Xrm.Sdk.EntityStates.deleted) {
-            Xrm.Sdk.OrganizationServiceProxy.beginDelete('quotedetail', itemToSave.quotedetailid, ss.Delegate.create(this, function(r) {
+        if (itemToSave.entityState === SparkleXrm.Sdk.EntityStates.deleted) {
+            SparkleXrm.Sdk.OrganizationServiceProxy.beginDelete('quotedetail', itemToSave.quotedetailid, ss.Delegate.create(this, function(r) {
                 try {
-                    Xrm.Sdk.OrganizationServiceProxy.endDelete(r);
-                    itemToSave.entityState = Xrm.Sdk.EntityStates.unchanged;
+                    SparkleXrm.Sdk.OrganizationServiceProxy.endDelete(r);
+                    itemToSave.entityState = SparkleXrm.Sdk.EntityStates.unchanged;
                 }
                 catch (ex) {
                     errorMessages.add(ex.message);
@@ -1677,11 +1807,11 @@ Client.QuoteLineItemEditor.ViewModels.QuoteLineItemEditorViewModel.prototype = {
             }));
         }
         else if (itemToSave.quotedetailid == null) {
-            Xrm.Sdk.OrganizationServiceProxy.beginCreate(itemToSave, ss.Delegate.create(this, function(r) {
+            SparkleXrm.Sdk.OrganizationServiceProxy.beginCreate(itemToSave, ss.Delegate.create(this, function(r) {
                 try {
-                    var newID = Xrm.Sdk.OrganizationServiceProxy.endCreate(r);
+                    var newID = SparkleXrm.Sdk.OrganizationServiceProxy.endCreate(r);
                     itemToSave.quotedetailid = newID;
-                    itemToSave.entityState = Xrm.Sdk.EntityStates.unchanged;
+                    itemToSave.entityState = SparkleXrm.Sdk.EntityStates.unchanged;
                 }
                 catch (ex) {
                     errorMessages.add(ex.message);
@@ -1690,10 +1820,10 @@ Client.QuoteLineItemEditor.ViewModels.QuoteLineItemEditorViewModel.prototype = {
             }));
         }
         else {
-            Xrm.Sdk.OrganizationServiceProxy.beginUpdate(itemToSave, ss.Delegate.create(this, function(r) {
+            SparkleXrm.Sdk.OrganizationServiceProxy.beginUpdate(itemToSave, ss.Delegate.create(this, function(r) {
                 try {
-                    Xrm.Sdk.OrganizationServiceProxy.endUpdate(r);
-                    itemToSave.entityState = Xrm.Sdk.EntityStates.unchanged;
+                    SparkleXrm.Sdk.OrganizationServiceProxy.endUpdate(r);
+                    itemToSave.entityState = SparkleXrm.Sdk.EntityStates.unchanged;
                 }
                 catch (ex) {
                     errorMessages.add(ex.message);
@@ -1725,7 +1855,7 @@ Client.QuoteLineItemEditor.ViewModels.QuoteLineItemEditorViewModel.prototype = {
                 var $enum1 = ss.IEnumerator.getEnumerator(this.lines.get_data());
                 while ($enum1.moveNext()) {
                     var item = $enum1.current;
-                    if (item != null && item.entityState !== Xrm.Sdk.EntityStates.unchanged) {
+                    if (item != null && item.entityState !== SparkleXrm.Sdk.EntityStates.unchanged) {
                         dirtyCollection.add(item);
                     }
                 }
@@ -1733,7 +1863,7 @@ Client.QuoteLineItemEditor.ViewModels.QuoteLineItemEditorViewModel.prototype = {
                     var $enum2 = ss.IEnumerator.getEnumerator(this.lines.deleteData);
                     while ($enum2.moveNext()) {
                         var item = $enum2.current;
-                        if (item.entityState === Xrm.Sdk.EntityStates.deleted) {
+                        if (item.entityState === SparkleXrm.Sdk.EntityStates.deleted) {
                             dirtyCollection.add(item);
                         }
                     }
@@ -1785,7 +1915,7 @@ Client.QuoteLineItemEditor.ViewModels.QuoteLineItemEditorViewModel.prototype = {
                 var $enum2 = ss.IEnumerator.getEnumerator(itemsToRemove);
                 while ($enum2.moveNext()) {
                     var item = $enum2.current;
-                    item.entityState = Xrm.Sdk.EntityStates.deleted;
+                    item.entityState = SparkleXrm.Sdk.EntityStates.deleted;
                     this.lines.removeItem(item);
                 }
                 this.lines.refresh();
@@ -1997,8 +2127,8 @@ Client.ScheduledJobsEditor.ViewModels.ScheduledJob.prototype = {
 // Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel
 
 Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel = function Client_ScheduledJobsEditor_ViewModels_ScheduledJobsEditorViewModel() {
-    this.jobsViewModel = new SparkleXrm.GridEditor.EntityDataViewModel(2, Xrm.Sdk.Entity, true);
-    this.bulkDeleteJobsViewModel = new SparkleXrm.GridEditor.EntityDataViewModel(10, Xrm.Sdk.Entity, true);
+    this.jobsViewModel = new SparkleXrm.GridEditor.EntityDataViewModel(2, SparkleXrm.Sdk.Entity, true);
+    this.bulkDeleteJobsViewModel = new SparkleXrm.GridEditor.EntityDataViewModel(10, SparkleXrm.Sdk.Entity, true);
     this.recurranceFrequencies = Client.ScheduledJobsEditor.ViewModels.RecurrancePatternMapper.get_recurranceFrequencies();
     this.selectedJob = ko.validatedObservable(new Client.ScheduledJobsEditor.ViewModels.ScheduledJob());
     Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel.initializeBase(this);
@@ -2019,7 +2149,7 @@ Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel.prototype = {
             job.name(item.dev1_name);
             job.startDate(item.dev1_startdate);
             job.recurrancePattern(item.dev1_recurrancepattern);
-            var entityName = new Xrm.Sdk.EntityReference(null, null, item.dev1_workflowname);
+            var entityName = new SparkleXrm.Sdk.EntityReference(null, null, item.dev1_workflowname);
             job.workflowId(entityName);
             var fetchXml = "<fetch version='1.0' output-format='xml-platform' mapping='logical' returntotalrecordcount='true' no-lock='true' distinct='false' count='{0}' paging-cookie='{1}' page='{2}'>\r\n                            <entity name='bulkdeleteoperation'>\r\n                            <attribute name='name' />\r\n                            <attribute name='createdon' />\r\n                            <attribute name='asyncoperationid' />\r\n                            <filter type='and'>\r\n                            <condition attribute='name' operator='like' value='%" + item.dev1_scheduledjobid.value + "%' />\r\n                            </filter>\r\n                            <link-entity name='asyncoperation' to='asyncoperationid' from='asyncoperationid' link-type='inner' alias='a0'>\r\n                            <attribute name='postponeuntil' alias='asyncoperation_postponeuntil' />\r\n                            <attribute name='statecode' alias='asyncoperation_statecode' />\r\n                            <attribute name='statuscode'  alias='asyncoperation_statuscode' />\r\n                            <attribute name='recurrencepattern'  alias='asyncoperation_recurrencepattern' />\r\n                            </link-entity>{3}\r\n                            </entity>\r\n                            </fetch>";
             this.bulkDeleteJobsViewModel.set_fetchXml(fetchXml);
@@ -2030,9 +2160,9 @@ Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel.prototype = {
     
     workflowSearchCommand: function Client_ScheduledJobsEditor_ViewModels_ScheduledJobsEditorViewModel$workflowSearchCommand(term, callback) {
         var fetchXml = "<fetch version='1.0' output-format='xml-platform' mapping='logical' distinct='false'>\r\n                              <entity name='workflow'>\r\n                                <attribute name='workflowid' />\r\n                                <attribute name='name' />\r\n                                <order attribute='modifiedon' descending='false' />\r\n                                <filter type='and'>\r\n                                    <condition attribute='name' operator='like' value='%{0}%' />\r\n                                    <condition attribute='type' value='1' operator='eq'/>\r\n                                    <condition attribute='category' value='0' operator='eq'/>\r\n                                </filter>\r\n                              </entity>\r\n                            </fetch>";
-        fetchXml = String.format(fetchXml, Xrm.Sdk.XmlHelper.encode(term));
-        Xrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
-            var fetchResult = Xrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, Xrm.Sdk.Entity);
+        fetchXml = String.format(fetchXml, SparkleXrm.Sdk.XmlHelper.encode(term));
+        SparkleXrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
+            var fetchResult = SparkleXrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, SparkleXrm.Sdk.Entity);
             callback(fetchResult);
         });
     },
@@ -2049,12 +2179,12 @@ Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel.prototype = {
                     return;
                 }
                 this.isBusy(true);
-                Xrm.DelegateItterator.callbackItterate(ss.Delegate.create(this, function(index, nextCallback, errorCallBack) {
+                SparkleXrm.DelegateItterator.callbackItterate(ss.Delegate.create(this, function(index, nextCallback, errorCallBack) {
                     var job = this.jobsViewModel.getItem(rows[index]);
                     this._deleteBulkDeleteJobs$1(job.dev1_scheduledjobid, ss.Delegate.create(this, function() {
-                        Xrm.Sdk.OrganizationServiceProxy.beginDelete(Client.ScheduledJobsEditor.Model.dev1_ScheduledJob.entityLogicalName, job.dev1_scheduledjobid, ss.Delegate.create(this, function(result) {
+                        SparkleXrm.Sdk.OrganizationServiceProxy.beginDelete(Client.ScheduledJobsEditor.Model.dev1_ScheduledJob.entityLogicalName, job.dev1_scheduledjobid, ss.Delegate.create(this, function(result) {
                             try {
-                                Xrm.Sdk.OrganizationServiceProxy.endDelete(result);
+                                SparkleXrm.Sdk.OrganizationServiceProxy.endDelete(result);
                                 this.isBusyProgress((index / rows.length) * 100);
                                 nextCallback();
                             }
@@ -2113,9 +2243,9 @@ Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel.prototype = {
                 jobToSave.dev1_workflowname = job.workflowId().name;
                 jobToSave.dev1_recurrancepattern = Client.ScheduledJobsEditor.ViewModels.RecurrancePatternMapper.serialise(job);
                 if (job.scheduledJobId() == null) {
-                    Xrm.Sdk.OrganizationServiceProxy.beginCreate(jobToSave, ss.Delegate.create(this, function(createJobResponse) {
+                    SparkleXrm.Sdk.OrganizationServiceProxy.beginCreate(jobToSave, ss.Delegate.create(this, function(createJobResponse) {
                         try {
-                            job.scheduledJobId(Xrm.Sdk.OrganizationServiceProxy.endCreate(createJobResponse));
+                            job.scheduledJobId(SparkleXrm.Sdk.OrganizationServiceProxy.endCreate(createJobResponse));
                             this._createBulkDeleteJobs$1(job);
                         }
                         catch (ex) {
@@ -2125,9 +2255,9 @@ Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel.prototype = {
                 }
                 else {
                     jobToSave.dev1_scheduledjobid = job.scheduledJobId();
-                    Xrm.Sdk.OrganizationServiceProxy.beginUpdate(jobToSave, ss.Delegate.create(this, function(createJobResponse) {
+                    SparkleXrm.Sdk.OrganizationServiceProxy.beginUpdate(jobToSave, ss.Delegate.create(this, function(createJobResponse) {
                         try {
-                            Xrm.Sdk.OrganizationServiceProxy.endUpdate(createJobResponse);
+                            SparkleXrm.Sdk.OrganizationServiceProxy.endUpdate(createJobResponse);
                             this._deleteBulkDeleteJobs$1(job.scheduledJobId(), ss.Delegate.create(this, function() {
                                 this._createBulkDeleteJobs$1(job);
                             }));
@@ -2145,9 +2275,9 @@ Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel.prototype = {
     _deleteBulkDeleteJobs$1: function Client_ScheduledJobsEditor_ViewModels_ScheduledJobsEditorViewModel$_deleteBulkDeleteJobs$1(scheduledJobId, callback) {
         this.isBusyMessage('Deleting existing schedule...');
         var fetchXml = "<fetch version='1.0' output-format='xml-platform' mapping='logical' distinct='false'>" + "<entity name='bulkdeleteoperation'>" + "<attribute name='name' />" + "<attribute name='asyncoperationid' />" + "<link-entity name='asyncoperation' alias='a0' to='asyncoperationid' from='asyncoperationid'>" + "<attribute name='statecode' alias='asyncoperation_statecode'/>" + "<attribute name='statuscode'  alias='asyncoperation_statuscode'/>" + '</link-entity>' + "<filter type='and'>" + "<condition attribute='name' operator='like' value='%" + scheduledJobId.toString() + "%' />" + '</filter>' + '</entity>' + '</fetch>';
-        Xrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, ss.Delegate.create(this, function(fetchJobsResponse) {
+        SparkleXrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, ss.Delegate.create(this, function(fetchJobsResponse) {
             try {
-                var jobs = Xrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(fetchJobsResponse, Client.ScheduledJobsEditor.Model.BulkDeleteOperation);
+                var jobs = SparkleXrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(fetchJobsResponse, Client.ScheduledJobsEditor.Model.BulkDeleteOperation);
                 var deleteItems = [];
                 this.isBusyProgress(0);
                 var $enum1 = ss.IEnumerator.getEnumerator(jobs.get_entities());
@@ -2156,12 +2286,12 @@ Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel.prototype = {
                     var deleteJobOperationRequest = new Client.ScheduledJobsEditor.ViewModels.PendingDelete();
                     deleteJobOperationRequest.entityName = Client.ScheduledJobsEditor.Model.BulkDeleteOperation.entityLogicalName;
                     deleteJobOperationRequest.id = item.bulkdeleteoperationid;
-                    Xrm.ArrayEx.add(deleteItems, deleteJobOperationRequest);
+                    SparkleXrm.ArrayEx.add(deleteItems, deleteJobOperationRequest);
                     var deleteAsyncOperationRequest = new Client.ScheduledJobsEditor.ViewModels.PendingDelete();
                     deleteAsyncOperationRequest.entityName = Client.ScheduledJobsEditor.Model.asyncoperation.entityLogicalName;
                     deleteAsyncOperationRequest.id = item.asyncoperationid.id;
                     deleteAsyncOperationRequest.cancelFirst = (item.asyncoperation_statecode.value === 1);
-                    Xrm.ArrayEx.add(deleteItems, deleteAsyncOperationRequest);
+                    SparkleXrm.ArrayEx.add(deleteItems, deleteAsyncOperationRequest);
                 }
                 this._deleteJob$1(deleteItems, callback);
             }
@@ -2172,18 +2302,18 @@ Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel.prototype = {
     },
     
     _deleteJob$1: function Client_ScheduledJobsEditor_ViewModels_ScheduledJobsEditorViewModel$_deleteJob$1(items, completedCallback) {
-        Xrm.DelegateItterator.callbackItterate(ss.Delegate.create(this, function(index, nextCallback, errorCallBack) {
+        SparkleXrm.DelegateItterator.callbackItterate(ss.Delegate.create(this, function(index, nextCallback, errorCallBack) {
             var pendingDeleteItem = items[index];
             if (pendingDeleteItem.cancelFirst) {
                 var operationToUpdate = new Client.ScheduledJobsEditor.Model.asyncoperation();
                 operationToUpdate.asyncoperationid = pendingDeleteItem.id;
                 operationToUpdate.id = operationToUpdate.asyncoperationid.value;
-                operationToUpdate.statecode = new Xrm.Sdk.OptionSetValue(3);
-                Xrm.Sdk.OrganizationServiceProxy.update(operationToUpdate);
+                operationToUpdate.statecode = new SparkleXrm.Sdk.OptionSetValue(3);
+                SparkleXrm.Sdk.OrganizationServiceProxy.update(operationToUpdate);
             }
-            Xrm.Sdk.OrganizationServiceProxy.beginDelete(pendingDeleteItem.entityName, pendingDeleteItem.id, ss.Delegate.create(this, function(result) {
+            SparkleXrm.Sdk.OrganizationServiceProxy.beginDelete(pendingDeleteItem.entityName, pendingDeleteItem.id, ss.Delegate.create(this, function(result) {
                 try {
-                    Xrm.Sdk.OrganizationServiceProxy.endDelete(result);
+                    SparkleXrm.Sdk.OrganizationServiceProxy.endDelete(result);
                     this.isBusyProgress((index / items.length) * 100);
                     nextCallback();
                 }
@@ -2200,13 +2330,13 @@ Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel.prototype = {
         this.isBusyMessage('Creating new schedule...');
         this.isBusyProgress(0);
         var fetchxml = "<fetch distinct='false' no-lock='false' mapping='logical'><entity name='lead'><attribute name='fullname' /><attribute name='statuscode' /><attribute name='createdon' /><attribute name='subject' /><attribute name='leadid' /><filter type='and'><condition attribute='ownerid' operator='eq-userid' /><condition attribute='statecode' operator='eq' value='0' /><condition attribute='address1_county' operator='eq' value='deleteme' /></filter><order attribute='createdon' descending='true' /></entity></fetch>";
-        var convertRequest = new Xrm.Sdk.Messages.FetchXmlToQueryExpressionRequest();
+        var convertRequest = new SparkleXrm.Sdk.Messages.FetchXmlToQueryExpressionRequest();
         convertRequest.fetchXml = fetchxml;
-        Xrm.Sdk.OrganizationServiceProxy.beginExecute(convertRequest, ss.Delegate.create(this, function(state) {
-            var response = Xrm.Sdk.OrganizationServiceProxy.endExecute(state);
+        SparkleXrm.Sdk.OrganizationServiceProxy.beginExecute(convertRequest, ss.Delegate.create(this, function(state) {
+            var response = SparkleXrm.Sdk.OrganizationServiceProxy.endExecute(state);
             var bulkDeleteRequests = [];
             if (job.recurrance().value !== 'DAILY') {
-                var startDate = Xrm.Sdk.DateTimeEx.utcToLocalTimeFromSettings(job.startDate(), Xrm.Sdk.OrganizationServiceProxy.getUserSettings());
+                var startDate = SparkleXrm.Sdk.DateTimeEx.utcToLocalTimeFromSettings(job.startDate(), SparkleXrm.Sdk.OrganizationServiceProxy.getUserSettings());
                 var interval = 'days';
                 var incrementAmount = 1;
                 var dayInterval = 1;
@@ -2234,24 +2364,24 @@ Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel.prototype = {
                     throw new Error('Invalid schedule');
                 }
                 for (var i = 0; i < recurranceCount; i++) {
-                    var request = new Xrm.Sdk.Messages.BulkDeleteRequest();
+                    var request = new SparkleXrm.Sdk.Messages.BulkDeleteRequest();
                     request.querySet = response.query.replaceAll('<d:anyType ', '<d:anyType xmlns:e="http://www.w3.org/2001/XMLSchema" ');
                     request.sendEmailNotification = false;
                     request.startDateTime = startDate;
                     request.recurrencePattern = 'FREQ=DAILY;INTERVAL=' + dayInterval.toString();
                     request.jobName = 'Scheduled Job ' + i.format('0000') + ' ' + job.scheduledJobId().value;
-                    Xrm.ArrayEx.add(bulkDeleteRequests, request);
-                    startDate = Xrm.Sdk.DateTimeEx.dateAdd(interval, incrementAmount, startDate);
+                    SparkleXrm.ArrayEx.add(bulkDeleteRequests, request);
+                    startDate = SparkleXrm.Sdk.DateTimeEx.dateAdd(interval, incrementAmount, startDate);
                 }
             }
             else {
-                var request = new Xrm.Sdk.Messages.BulkDeleteRequest();
+                var request = new SparkleXrm.Sdk.Messages.BulkDeleteRequest();
                 request.querySet = response.query.replaceAll('<d:anyType ', '<d:anyType xmlns:e="http://www.w3.org/2001/XMLSchema" ');
                 request.sendEmailNotification = false;
                 request.startDateTime = job.startDate();
                 request.recurrencePattern = Client.ScheduledJobsEditor.ViewModels.RecurrancePatternMapper.serialise(job);
                 request.jobName = 'Scheduled Job ' + job.scheduledJobId().value;
-                Xrm.ArrayEx.add(bulkDeleteRequests, request);
+                SparkleXrm.ArrayEx.add(bulkDeleteRequests, request);
             }
             this._batchCreateBulkDeleteJobs$1(bulkDeleteRequests, ss.Delegate.create(this, function() {
                 this.isBusy(false);
@@ -2262,11 +2392,11 @@ Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel.prototype = {
     },
     
     _batchCreateBulkDeleteJobs$1: function Client_ScheduledJobsEditor_ViewModels_ScheduledJobsEditorViewModel$_batchCreateBulkDeleteJobs$1(items, completedCallback) {
-        Xrm.DelegateItterator.callbackItterate(ss.Delegate.create(this, function(index, nextCallback, errorCallBack) {
+        SparkleXrm.DelegateItterator.callbackItterate(ss.Delegate.create(this, function(index, nextCallback, errorCallBack) {
             var pendingDeleteItem = items[index];
-            Xrm.Sdk.OrganizationServiceProxy.beginExecute(pendingDeleteItem, ss.Delegate.create(this, function(result) {
+            SparkleXrm.Sdk.OrganizationServiceProxy.beginExecute(pendingDeleteItem, ss.Delegate.create(this, function(result) {
                 try {
-                    Xrm.Sdk.OrganizationServiceProxy.endExecute(result);
+                    SparkleXrm.Sdk.OrganizationServiceProxy.endExecute(result);
                     this.isBusyProgress((index / items.length) * 100);
                     nextCallback();
                 }
@@ -2344,8 +2474,8 @@ Client.ScheduledJobsEditor.ViewModels.RecurrancePatternMapper.get_recurranceFreq
 }
 Client.ScheduledJobsEditor.ViewModels.RecurrancePatternMapper.serialise = function Client_ScheduledJobsEditor_ViewModels_RecurrancePatternMapper$serialise(scheduledJob) {
     var parts = [];
-    Xrm.ArrayEx.add(parts, 'FREQ=' + scheduledJob.recurrance().value);
-    Xrm.ArrayEx.add(parts, 'INTERVAL=' + scheduledJob.recurEvery().toString());
+    SparkleXrm.ArrayEx.add(parts, 'FREQ=' + scheduledJob.recurrance().value);
+    SparkleXrm.ArrayEx.add(parts, 'INTERVAL=' + scheduledJob.recurEvery().toString());
     if (scheduledJob.recurrance().value === 'WEEKLY') {
         var days = [];
         if (scheduledJob.monday()) {
@@ -2370,11 +2500,11 @@ Client.ScheduledJobsEditor.ViewModels.RecurrancePatternMapper.serialise = functi
             days.add('SU');
         }
         if (days.length > 0) {
-            Xrm.ArrayEx.add(parts, 'BYDAY=' + days.join(','));
+            SparkleXrm.ArrayEx.add(parts, 'BYDAY=' + days.join(','));
         }
     }
     if (!scheduledJob.noEndDate()) {
-        Xrm.ArrayEx.add(parts, 'COUNT=' + scheduledJob.count());
+        SparkleXrm.ArrayEx.add(parts, 'COUNT=' + scheduledJob.count());
     }
     var pattern = parts.join(';');
     return pattern;
@@ -2461,7 +2591,7 @@ Client.ScheduledJobsEditor.Views.ScheduledJobsEditorView = function Client_Sched
 Client.ScheduledJobsEditor.Views.ScheduledJobsEditorView.init = function Client_ScheduledJobsEditor_Views_ScheduledJobsEditorView$init() {
     $(function() {
         ko.validation.registerExtenders();
-        Xrm.Sdk.OrganizationServiceProxy.getUserSettings();
+        SparkleXrm.Sdk.OrganizationServiceProxy.getUserSettings();
         var vm = new Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel();
         Client.ScheduledJobsEditor.Views.ScheduledJobsEditorView.setUpGrids(vm);
         SparkleXrm.ViewBase.registerViewModel(vm);
@@ -2485,8 +2615,8 @@ Type.registerNamespace('Client.ContactEditor.Model');
 
 Client.ContactEditor.Model.Contact = function Client_ContactEditor_Model_Contact() {
     Client.ContactEditor.Model.Contact.initializeBase(this, [ 'contact' ]);
-    this._metaData['numberofchildren'] = Xrm.Sdk.AttributeTypes.int_;
-    this._metaData['creditlimit'] = Xrm.Sdk.AttributeTypes.money;
+    this._metaData['numberofchildren'] = SparkleXrm.Sdk.AttributeTypes.int_;
+    this._metaData['creditlimit'] = SparkleXrm.Sdk.AttributeTypes.money;
 }
 Client.ContactEditor.Model.Contact.prototype = {
     contactid: null,
@@ -2497,7 +2627,10 @@ Client.ContactEditor.Model.Contact.prototype = {
     accountrolecode: null,
     numberofchildren: null,
     transactioncurrencyid: null,
-    creditlimit: null
+    creditlimit: null,
+    entityimage_url: null,
+    ownerid: null,
+    parentcustomerid: null
 }
 
 
@@ -2511,18 +2644,31 @@ Client.Views.ContactEditorView = function Client_Views_ContactEditorView() {
 }
 Client.Views.ContactEditorView.init = function Client_Views_ContactEditorView$init() {
     var vm = new Client.ContactEditor.ViewModels.ContactsEditorViewModel();
-    var columns = SparkleXrm.GridEditor.GridDataViewBinder.parseLayout(',entityState,20,First Name,firstname,200,Last Name,lastname,200,Birth Date,birthdate,200,Account Role Code,accountrolecode,200,Number of Children,numberofchildren,100,Currency,transactioncurrencyid,200,Credit Limit,creditlimit,100');
+    SparkleXrm.Sdk.OrganizationServiceProxy.getUserSettings();
+    var columns = SparkleXrm.GridEditor.GridDataViewBinder.parseLayout(',entityState,20,First Name,firstname,200,Last Name,lastname,200,Birth Date,birthdate,200,Account Role Code,accountrolecode,200,Number of Children,numberofchildren,100,Currency,transactioncurrencyid,200,Credit Limit,creditlimit,100,Gender,gendercode,100,Owner,ownerid,100,Parent Customer,parentcustomerid,100');
     columns[0].formatter = function(row, cell, value, columnDef, dataContext) {
         var state = value;
-        return ((state === Xrm.Sdk.EntityStates.changed) || (state === Xrm.Sdk.EntityStates.created)) ? "<span class='grid-edit-indicator'></span>" : '';
+        return ((state === SparkleXrm.Sdk.EntityStates.changed) || (state === SparkleXrm.Sdk.EntityStates.created)) ? "<span class='grid-edit-indicator'></span>" : '';
     };
     SparkleXrm.GridEditor.XrmTextEditor.bindColumn(columns[1]);
     SparkleXrm.GridEditor.XrmTextEditor.bindColumn(columns[2]);
-    SparkleXrm.GridEditor.XrmDateEditor.bindColumn(columns[3], false);
+    var dateOptions = {};
+    dateOptions.hour = 9;
+    dateOptions.minute = 0;
+    SparkleXrm.GridEditor.XrmDateEditor.bindColumn(columns[3], false).options = dateOptions;
     SparkleXrm.GridEditor.XrmOptionSetEditor.bindColumn(columns[4], 'contact', columns[4].field, true);
     SparkleXrm.GridEditor.XrmNumberEditor.bindColumn(columns[5], 0, 100, 0);
     SparkleXrm.GridEditor.XrmLookupEditor.bindColumn(columns[6], ss.Delegate.create(vm, vm.transactionCurrencySearchCommand), 'transactioncurrencyid', 'currencyname', '');
     SparkleXrm.GridEditor.XrmMoneyEditor.bindColumn(columns[7], -10000, 10000);
+    SparkleXrm.GridEditor.XrmOptionSetEditor.bindColumn(columns[8], 'contact', columns[8].field, true);
+    var options = SparkleXrm.GridEditor.XrmLookupEditor.bindColumn(columns[9], ss.Delegate.create(vm, vm.ownerSearchCommand), 'id', 'name', '').options;
+    options.showFooter = true;
+    var accountLookupOptions = SparkleXrm.GridEditor.XrmLookupEditor.bindColumn(columns[10], ss.Delegate.create(vm, vm.AccountSearchCommand), 'id', 'name', '').options;
+    accountLookupOptions.showFooter = true;
+    accountLookupOptions.footerButton = new SparkleXrm.GridEditor.XrmLookupEditorButton();
+    accountLookupOptions.footerButton.label = 'Add New';
+    accountLookupOptions.footerButton.image = '/_imgs/add_10.png';
+    accountLookupOptions.footerButton.onClick = ss.Delegate.create(vm, vm.AddNewAccountInLine);
     var contactGridDataBinder = new SparkleXrm.GridEditor.GridDataViewBinder();
     var contactsGrid = contactGridDataBinder.dataBindXrmGrid(vm.contacts, columns, 'container', 'pager', true, false);
     SparkleXrm.ViewBase.registerViewModel(vm);
@@ -2618,8 +2764,8 @@ TimeSheet.Client.ViewModel.SessionVM.prototype = {
         var startTime = this.dev1_starttime();
         var endTime = this.dev1_endtime();
         var duration = null;
-        startTime = Xrm.Sdk.DateTimeEx.addTimeToDate(startTime, this.startTimeTime());
-        endTime = Xrm.Sdk.DateTimeEx.addTimeToDate(endTime, this.endTimeTime());
+        startTime = SparkleXrm.Sdk.DateTimeEx.addTimeToDate(startTime, this.startTimeTime());
+        endTime = SparkleXrm.Sdk.DateTimeEx.addTimeToDate(endTime, this.endTimeTime());
         if (endTime != null && startTime != null) {
             endTime.setDate(startTime.getDate());
             endTime.setMonth(startTime.getMonth());
@@ -2638,7 +2784,7 @@ TimeSheet.Client.ViewModel.SessionVM.prototype = {
         var startTime = this.dev1_starttime();
         var startTimeTime = this.startTimeTime();
         if ((startTime != null) && (startTimeTime != null)) {
-            startTime = Xrm.Sdk.DateTimeEx.addTimeToDate(startTime, startTimeTime);
+            startTime = SparkleXrm.Sdk.DateTimeEx.addTimeToDate(startTime, startTimeTime);
             var duration = this.dev1_duration();
             var startTimeMilliSeconds = startTime.getTime();
             startTimeMilliSeconds = startTimeMilliSeconds + (duration * 1000 * 60);
@@ -2675,7 +2821,7 @@ TimeSheet.Client.ViewModel.SessionVM.prototype = {
     
     _setTime: function TimeSheet_Client_ViewModel_SessionVM$_setTime(dateProperty, time) {
         var currentDate = dateProperty();
-        currentDate = Xrm.Sdk.DateTimeEx.addTimeToDate(currentDate, time());
+        currentDate = SparkleXrm.Sdk.DateTimeEx.addTimeToDate(currentDate, time());
         dateProperty(currentDate);
     },
     
@@ -2706,7 +2852,7 @@ TimeSheet.Client.ViewModel.StartStopSessionViewModel = function TimeSheet_Client
     var newSession = new dev1_session();
     newSession.dev1_starttime = Date.get_now();
     this.startSession = ko.validatedObservable(new TimeSheet.Client.ViewModel.SessionVM(this, newSession));
-    var session = Xrm.Sdk.OrganizationServiceProxy.retrieve('dev1_session', '{FD722AC2-B234-E211-A471-000C299FFE7D}', [ 'AllColumns' ]);
+    var session = SparkleXrm.Sdk.OrganizationServiceProxy.retrieve('dev1_session', '{FD722AC2-B234-E211-A471-000C299FFE7D}', [ 'AllColumns' ]);
     var sessionVM = new TimeSheet.Client.ViewModel.SessionVM(this, session);
     this.stopSession = ko.validatedObservable(sessionVM);
     var isFormValidDependantProperty = {};
@@ -2733,9 +2879,9 @@ TimeSheet.Client.ViewModel.StartStopSessionViewModel.prototype = {
     
     activitySearchCommand: function TimeSheet_Client_ViewModel_StartStopSessionViewModel$activitySearchCommand(term, callback) {
         var fetchXml = "<fetch version='1.0' output-format='xml-platform' mapping='logical' distinct='false'>\r\n                              <entity name='activitypointer'>\r\n                                <attribute name='activitytypecode' />\r\n                                <attribute name='subject' />\r\n                                <attribute name='activityid' />\r\n                                <attribute name='instancetypecode' />\r\n                                <order attribute='modifiedon' descending='false' />\r\n                                <filter type='and'>\r\n                                  <condition attribute='ownerid' operator='eq-userid' />\r\n                                    <condition attribute='subject' operator='like' value='%{0}%' />\r\n                                </filter>\r\n                              </entity>\r\n                            </fetch>";
-        fetchXml = String.format(fetchXml, Xrm.Sdk.XmlHelper.encode(term));
-        Xrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
-            var fetchResult = Xrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, Xrm.Sdk.Entity);
+        fetchXml = String.format(fetchXml, SparkleXrm.Sdk.XmlHelper.encode(term));
+        SparkleXrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
+            var fetchResult = SparkleXrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, SparkleXrm.Sdk.Entity);
             callback(fetchResult);
         });
     },
@@ -2752,10 +2898,10 @@ TimeSheet.Client.ViewModel.StartStopSessionViewModel.prototype = {
                 var stopSession = this.stopSession();
                 var sessionToUpdate = stopSession.getUpdatedModel();
                 try {
-                    Xrm.Sdk.OrganizationServiceProxy.update(sessionToUpdate);
+                    SparkleXrm.Sdk.OrganizationServiceProxy.update(sessionToUpdate);
                     if (this.startNewSession()) {
                         var nextSession = this.startSession().getUpdatedModel();
-                        Xrm.Sdk.OrganizationServiceProxy.create(nextSession);
+                        SparkleXrm.Sdk.OrganizationServiceProxy.create(nextSession);
                     }
                 }
                 catch (ex) {
@@ -2786,6 +2932,7 @@ Type.registerNamespace('Client.TimeSheet.ViewModel');
 
 Client.TimeSheet.ViewModel.DayEntry = function Client_TimeSheet_ViewModel_DayEntry() {
     this.hours = new Array(6);
+    Client.TimeSheet.ViewModel.DayEntry.initializeBase(this, [ 'dayentry' ]);
 }
 Client.TimeSheet.ViewModel.DayEntry.prototype = {
     date: null,
@@ -2850,6 +2997,7 @@ Client.TimeSheet.ViewModel.DaysViewModel.prototype = {
     _newRow$1: null,
     _totals$1: null,
     _days$1: null,
+    _sortCol$1: null,
     _selectedDay: null,
     
     setCurrentWeek: function Client_TimeSheet_ViewModel_DaysViewModel$setCurrentWeek(date) {
@@ -2926,7 +3074,7 @@ Client.TimeSheet.ViewModel.DaysViewModel.prototype = {
         this._totals$1 = new Client.TimeSheet.ViewModel.DayEntry();
         this._totals$1.isTotalRow = true;
         this._totals$1.activityName = 'Total';
-        this._totals$1.activity = new Xrm.Sdk.EntityReference(null, null, null);
+        this._totals$1.activity = new SparkleXrm.Sdk.EntityReference(null, null, null);
         this._totals$1.activity.name = 'Total';
         var $enum1 = ss.IEnumerator.getEnumerator(sessionData);
         while ($enum1.moveNext()) {
@@ -2934,7 +3082,7 @@ Client.TimeSheet.ViewModel.DaysViewModel.prototype = {
             if (session.dev1_starttime == null) {
                 continue;
             }
-            var dayOfWeek = session.dev1_starttime.getDay() - Xrm.Sdk.OrganizationServiceProxy.organizationSettings.weekstartdaycode.value;
+            var dayOfWeek = session.dev1_starttime.getDay() - SparkleXrm.Sdk.OrganizationServiceProxy.organizationSettings.weekstartdaycode.value;
             if (dayOfWeek < 0) {
                 dayOfWeek = 7 + dayOfWeek;
             }
@@ -2942,7 +3090,7 @@ Client.TimeSheet.ViewModel.DaysViewModel.prototype = {
             if (this._days$1[activity] == null) {
                 var day = new Client.TimeSheet.ViewModel.DayEntry();
                 this._days$1[activity] = day;
-                day.activity = new Xrm.Sdk.EntityReference(new Xrm.Sdk.Guid(session.dev1_activityid), null, null);
+                day.activity = new SparkleXrm.Sdk.EntityReference(new SparkleXrm.Sdk.Guid(session.dev1_activityid), null, null);
                 day.activity.name = session.activitypointer_subject;
                 day.regardingObjectId = session.activitypointer_regardingobjectid;
                 if (session.account != null && day.account == null) {
@@ -2970,6 +3118,7 @@ Client.TimeSheet.ViewModel.DaysViewModel.prototype = {
             this._rows$1.add(day.value);
         }
         this._totals$1.flatternDays();
+        this._sortData$1();
         this.refresh();
     },
     
@@ -3008,7 +3157,7 @@ Client.TimeSheet.ViewModel.DaysViewModel.prototype = {
     
     _setAccountAndRegardingFromActivity$1: function Client_TimeSheet_ViewModel_DaysViewModel$_setAccountAndRegardingFromActivity$1(session) {
         var fetchXml = "\r\n                    <fetch>\r\n                        <entity name='activitypointer' >\r\n                                <attribute name='regardingobjectid' />\r\n                                <filter type='and'>\r\n                                    <condition attribute='activityid' operator='eq' value='{0}' />\r\n                                </filter>\r\n                                <link-entity name='contract' from='contractid' to='regardingobjectid' visible='false' link-type='outer' alias='contract' >\r\n                                    <attribute name='customerid' alias='contract_customerid'/>\r\n                                </link-entity>\r\n                                <link-entity name='opportunity' from='opportunityid' to='regardingobjectid' visible='false' link-type='outer' alias='opportunity' >\r\n                                    <attribute name='customerid' alias='opportunity_customerid'/>\r\n                                </link-entity>\r\n                                <link-entity name='incident' from='incidentid' to='regardingobjectid' visible='false' link-type='outer' alias='incident' >\r\n                                    <attribute name='customerid' alias='incident_customerid'/>\r\n                                </link-entity>                        \r\n                        </entity>\r\n                    </fetch>";
-        var activities = Xrm.Sdk.OrganizationServiceProxy.retrieveMultiple(String.format(fetchXml, session.dev1_activityid));
+        var activities = SparkleXrm.Sdk.OrganizationServiceProxy.retrieveMultiple(String.format(fetchXml, session.dev1_activityid));
         if (activities.get_entities().get_count() > 0) {
             var account = null;
             var activity = activities.get_entities().get_item(0);
@@ -3031,6 +3180,30 @@ Client.TimeSheet.ViewModel.DaysViewModel.prototype = {
             session.account = account;
             session.activitypointer_regardingobjectid = activity.getAttributeValueEntityReference('regardingobjectid');
         }
+    },
+    
+    sort: function Client_TimeSheet_ViewModel_DaysViewModel$sort(sorting) {
+        this._sortCol$1 = sorting;
+        this._sortData$1();
+        this.refresh();
+    },
+    
+    _sortData$1: function Client_TimeSheet_ViewModel_DaysViewModel$_sortData$1() {
+        if (this._sortCol$1 == null) {
+            return;
+        }
+        var totalRow = this._rows$1[0];
+        this._rows$1.removeAt(0);
+        if (!this._sortCol$1.sortAsc) {
+            this._rows$1.reverse();
+        }
+        this._rows$1.sort(ss.Delegate.create(this, function(a, b) {
+            return SparkleXrm.Sdk.Entity.sortDelegate(this._sortCol$1.sortCol.field, a, b);
+        }));
+        if (!this._sortCol$1.sortAsc) {
+            this._rows$1.reverse();
+        }
+        this._rows$1.insert(0, totalRow);
     }
 }
 
@@ -3077,8 +3250,8 @@ Client.TimeSheet.ViewModel.SessionsViewModel.prototype = {
     
     setCurrentWeek: function Client_TimeSheet_ViewModel_SessionsViewModel$setCurrentWeek(date) {
         this._selectedDate$1 = date;
-        this.weekStart = Xrm.Sdk.DateTimeEx.firstDayOfWeek(date);
-        this.weekEnd = Xrm.Sdk.DateTimeEx.lastDayOfWeek(date);
+        this.weekStart = SparkleXrm.Sdk.DateTimeEx.firstDayOfWeek(date);
+        this.weekEnd = SparkleXrm.Sdk.DateTimeEx.lastDayOfWeek(date);
         this.refresh();
     },
     
@@ -3097,7 +3270,7 @@ Client.TimeSheet.ViewModel.SessionsViewModel.prototype = {
             return;
         }
         if (day > 0) {
-            this.selectedDay = Xrm.Sdk.DateTimeEx.dateAdd('days', day - 1, this.weekStart);
+            this.selectedDay = SparkleXrm.Sdk.DateTimeEx.dateAdd('days', day - 1, this.weekStart);
         }
         else {
             this.selectedDay = null;
@@ -3133,7 +3306,7 @@ Client.TimeSheet.ViewModel.SessionsViewModel.prototype = {
             Client.TimeSheet.ViewModel.SessionsViewModel._onStartEndDateChanged$1(session);
         }
         if (session.statuscode != null && session.statuscode.value !== 1) {
-            session.entityState = Xrm.Sdk.EntityStates.readOnly;
+            session.entityState = SparkleXrm.Sdk.EntityStates.readOnly;
         }
         session.add_propertyChanged(ss.Delegate.create(this, this._onSessionPropertyChanged$1));
     },
@@ -3151,7 +3324,7 @@ Client.TimeSheet.ViewModel.SessionsViewModel.prototype = {
     onBeforeEdit: function Client_TimeSheet_ViewModel_SessionsViewModel$onBeforeEdit(item) {
         var session = item;
         if (item != null) {
-            return (session.entityState !== Xrm.Sdk.EntityStates.readOnly);
+            return (session.entityState !== SparkleXrm.Sdk.EntityStates.readOnly);
         }
         else {
             return true;
@@ -3179,7 +3352,7 @@ Client.TimeSheet.ViewModel.SessionsViewModel.prototype = {
         var $enum1 = ss.IEnumerator.getEnumerator(this._weeks$1[this.weekStart.getTime()]);
         while ($enum1.moveNext()) {
             var session = $enum1.current;
-            if (session.dev1_sessionid == null || session.entityState === Xrm.Sdk.EntityStates.changed || session.entityState === Xrm.Sdk.EntityStates.created) {
+            if (session.dev1_sessionid == null || session.entityState === SparkleXrm.Sdk.EntityStates.changed || session.entityState === SparkleXrm.Sdk.EntityStates.created) {
                 edited.add(session);
             }
         }
@@ -3213,9 +3386,9 @@ Client.TimeSheet.ViewModel.SessionsViewModel.prototype = {
     refresh: function Client_TimeSheet_ViewModel_SessionsViewModel$refresh() {
         if (this._weeks$1[this.weekStart.getTime()] == null) {
             this.onDataLoading.notify(null, null, null);
-            Xrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(String.format(Client.TimeSheet.Model.Queries.sessionsByWeekStartDate, Xrm.Sdk.DateTimeEx.toXrmString(this.weekStart), Xrm.Sdk.DateTimeEx.toXrmString(this.weekEnd)), ss.Delegate.create(this, function(result) {
+            SparkleXrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(String.format(Client.TimeSheet.Model.Queries.sessionsByWeekStartDate, SparkleXrm.Sdk.DateTimeEx.toXrmString(this.weekStart), SparkleXrm.Sdk.DateTimeEx.toXrmString(this.weekEnd)), ss.Delegate.create(this, function(result) {
                 try {
-                    var results = Xrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, dev1_session);
+                    var results = SparkleXrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, dev1_session);
                     var sessions = [];
                     this._weeks$1[this.weekStart.getTime()] = sessions;
                     var $enum1 = ss.IEnumerator.getEnumerator(results.get_entities());
@@ -3262,7 +3435,7 @@ Client.TimeSheet.ViewModel.SessionsViewModel.prototype = {
                     newItem.dev1_emailid = this.selectedActivity;
                     break;
             }
-            newItem.entityState = Xrm.Sdk.EntityStates.created;
+            newItem.entityState = SparkleXrm.Sdk.EntityStates.created;
             if (newItem.dev1_starttime == null) {
                 newItem.dev1_starttime = (this.selectedDay == null) ? this.weekStart : this.selectedDay;
             }
@@ -3311,9 +3484,9 @@ Client.TimeSheet.ViewModel.TimeSheetViewModel.prototype = {
             if (selectedItem != null && selectedItem.account != null) {
                 additionalCriteria = String.format(accountCriteriaFetchXml, accountAttribute, selectedItem.account.id.value);
             }
-            var queryFetchXml = String.format(fetchXml, Xrm.Sdk.XmlHelper.encode(term), additionalCriteria);
-            Xrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(queryFetchXml, function(result) {
-                var fetchResult = Xrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, ActivityPointer);
+            var queryFetchXml = String.format(fetchXml, SparkleXrm.Sdk.XmlHelper.encode(term), additionalCriteria);
+            SparkleXrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(queryFetchXml, function(result) {
+                var fetchResult = SparkleXrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, ActivityPointer);
                 var $enum1 = ss.IEnumerator.getEnumerator(fetchResult.get_entities());
                 while ($enum1.moveNext()) {
                     var a = $enum1.current;
@@ -3323,7 +3496,7 @@ Client.TimeSheet.ViewModel.TimeSheetViewModel.prototype = {
                 completeCallBack();
             });
         };
-        var tasks = new Xrm.TaskIterrator();
+        var tasks = new SparkleXrm.TaskIterrator();
         tasks.addTask(function(completeCallBack, errorCallBack) {
             unionSearch(regardingAccountFetchXml, 'name', 'accountid', completeCallBack, errorCallBack);
         });
@@ -3335,9 +3508,9 @@ Client.TimeSheet.ViewModel.TimeSheetViewModel.prototype = {
         });
         var queryComplete = function() {
             unionedResults.sort(function(a, b) {
-                return Xrm.Sdk.Entity.sortDelegate('displayName', a, b);
+                return SparkleXrm.Sdk.Entity.sortDelegate('displayName', a, b);
             });
-            var results = new Xrm.Sdk.EntityCollection(unionedResults);
+            var results = new SparkleXrm.Sdk.EntityCollection(unionedResults);
             callback(results);
         };
         tasks.start(queryComplete, null);
@@ -3367,9 +3540,9 @@ Client.TimeSheet.ViewModel.TimeSheetViewModel.prototype = {
         }
         var unionedResults = [];
         var unionSearch = function(additionalFilter, additionalCriteria, completeCallBack, errorCallBack) {
-            var queryFetchXml = String.format(fetchXml, Xrm.Sdk.XmlHelper.encode(term), additionalFilter, additionalCriteria);
-            Xrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(queryFetchXml, function(result) {
-                var fetchResult = Xrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, ActivityPointer);
+            var queryFetchXml = String.format(fetchXml, SparkleXrm.Sdk.XmlHelper.encode(term), additionalFilter, additionalCriteria);
+            SparkleXrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(queryFetchXml, function(result) {
+                var fetchResult = SparkleXrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, ActivityPointer);
                 var $enum1 = ss.IEnumerator.getEnumerator(fetchResult.get_entities());
                 while ($enum1.moveNext()) {
                     var a = $enum1.current;
@@ -3379,7 +3552,7 @@ Client.TimeSheet.ViewModel.TimeSheetViewModel.prototype = {
                 completeCallBack();
             });
         };
-        var tasks = new Xrm.TaskIterrator();
+        var tasks = new SparkleXrm.TaskIterrator();
         tasks.addTask(function(completeCallBack, errorCallBack) {
             unionSearch(regardingAccountFilter, regardingObjectFilter, completeCallBack, errorCallBack);
         });
@@ -3400,9 +3573,9 @@ Client.TimeSheet.ViewModel.TimeSheetViewModel.prototype = {
         }
         var queryComplete = function() {
             unionedResults.sort(function(a, b) {
-                return Xrm.Sdk.Entity.sortDelegate('subject', a, b);
+                return SparkleXrm.Sdk.Entity.sortDelegate('subject', a, b);
             });
-            var results = new Xrm.Sdk.EntityCollection(unionedResults);
+            var results = new SparkleXrm.Sdk.EntityCollection(unionedResults);
             callback(results);
         };
         tasks.start(queryComplete, null);
@@ -3410,9 +3583,9 @@ Client.TimeSheet.ViewModel.TimeSheetViewModel.prototype = {
     
     accountSeachCommand: function Client_TimeSheet_ViewModel_TimeSheetViewModel$accountSeachCommand(term, callback) {
         var fetchXml = "<fetch version='1.0' output-format='xml-platform' mapping='logical' distinct='false'>\r\n                              <entity name='account'>\r\n                                <attribute name='name' />\r\n                                <attribute name='accountid' />\r\n                                <order attribute='name' descending='false' />\r\n                                <filter type='and'>\r\n                                  <filter type='or'>\r\n                                    <condition attribute='name' operator='like' value='%{0}%' />\r\n                                    <condition attribute='accountnumber' operator='like' value='%{0}%' />\r\n                                  </filter>\r\n                                  <condition attribute='statecode' operator='eq' value='0' />\r\n                                </filter>\r\n                              </entity>\r\n                            </fetch>";
-        fetchXml = String.format(fetchXml, Xrm.Sdk.XmlHelper.encode(term));
-        Xrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
-            var fetchResult = Xrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, Xrm.Sdk.Entity);
+        fetchXml = String.format(fetchXml, SparkleXrm.Sdk.XmlHelper.encode(term));
+        SparkleXrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(fetchXml, function(result) {
+            var fetchResult = SparkleXrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, SparkleXrm.Sdk.Entity);
             callback(fetchResult);
         });
     },
@@ -3431,7 +3604,7 @@ Client.TimeSheet.ViewModel.TimeSheetViewModel.prototype = {
                     this.isBusyProgress(0);
                     this.isBusyMessage('Saving...');
                     var editedSessions = this.sessionDataView.getEditedSessions();
-                    Xrm.DelegateItterator.callbackItterate(ss.Delegate.create(this, function(index, nextCallback, errorCallBack) {
+                    SparkleXrm.DelegateItterator.callbackItterate(ss.Delegate.create(this, function(index, nextCallback, errorCallBack) {
                         var session = editedSessions[index];
                         var sessionToSave = new dev1_session();
                         sessionToSave.dev1_sessionid = session.dev1_sessionid;
@@ -3450,11 +3623,11 @@ Client.TimeSheet.ViewModel.TimeSheetViewModel.prototype = {
                         this.isBusyProgress((index / editedSessions.length) * 100);
                         if (session.dev1_sessionid == null) {
                             if (sessionToSave.dev1_duration != null && sessionToSave.dev1_duration > 0) {
-                                Xrm.Sdk.OrganizationServiceProxy.beginCreate(sessionToSave, ss.Delegate.create(this, function(result) {
+                                SparkleXrm.Sdk.OrganizationServiceProxy.beginCreate(sessionToSave, ss.Delegate.create(this, function(result) {
                                     this.isBusyProgress((index / editedSessions.length) * 100);
                                     try {
-                                        session.dev1_sessionid = Xrm.Sdk.OrganizationServiceProxy.endCreate(result);
-                                        session.entityState = Xrm.Sdk.EntityStates.unchanged;
+                                        session.dev1_sessionid = SparkleXrm.Sdk.OrganizationServiceProxy.endCreate(result);
+                                        session.entityState = SparkleXrm.Sdk.EntityStates.unchanged;
                                         session.raisePropertyChanged('EntityState');
                                         nextCallback();
                                     }
@@ -3469,10 +3642,10 @@ Client.TimeSheet.ViewModel.TimeSheetViewModel.prototype = {
                             }
                         }
                         else {
-                            Xrm.Sdk.OrganizationServiceProxy.beginUpdate(sessionToSave, function(result) {
+                            SparkleXrm.Sdk.OrganizationServiceProxy.beginUpdate(sessionToSave, function(result) {
                                 try {
-                                    Xrm.Sdk.OrganizationServiceProxy.endUpdate(result);
-                                    session.entityState = Xrm.Sdk.EntityStates.unchanged;
+                                    SparkleXrm.Sdk.OrganizationServiceProxy.endUpdate(result);
+                                    session.entityState = SparkleXrm.Sdk.EntityStates.unchanged;
                                     session.raisePropertyChanged('EntityState');
                                     nextCallback();
                                 }
@@ -3517,13 +3690,13 @@ Client.TimeSheet.ViewModel.TimeSheetViewModel.prototype = {
                 for (var i = 0; i < selectedRows.length; i++) {
                     itemsToDelete.add(this.sessionDataView.getItem(i));
                 }
-                Xrm.DelegateItterator.callbackItterate(ss.Delegate.create(this, function(index, nextCallback, errorCallBack) {
+                SparkleXrm.DelegateItterator.callbackItterate(ss.Delegate.create(this, function(index, nextCallback, errorCallBack) {
                     var session = itemsToDelete[index];
                     this.isBusyProgress((index / selectedRows.length) * 100);
                     if (session.dev1_sessionid != null) {
-                        Xrm.Sdk.OrganizationServiceProxy.beginDelete(session.logicalName, session.dev1_sessionid, ss.Delegate.create(this, function(result) {
+                        SparkleXrm.Sdk.OrganizationServiceProxy.beginDelete(session.logicalName, session.dev1_sessionid, ss.Delegate.create(this, function(result) {
                             try {
-                                Xrm.Sdk.OrganizationServiceProxy.endDelete(result);
+                                SparkleXrm.Sdk.OrganizationServiceProxy.endDelete(result);
                                 this.sessionDataView.removeItem(session);
                                 this.sessionDataView.refresh();
                                 nextCallback();
@@ -3583,25 +3756,26 @@ Client.TimeSheet.View.TimeSheetView = function Client_TimeSheet_View_TimeSheetVi
     Client.TimeSheet.View.TimeSheetView.initializeBase(this);
 }
 Client.TimeSheet.View.TimeSheetView.init = function Client_TimeSheet_View_TimeSheetView$init() {
-    Xrm.PageEx.majorVersion = 2013;
+    SparkleXrm.Xrm.PageEx.majorVersion = 2013;
     $(function() {
         ko.validation.registerExtenders();
-        Xrm.Sdk.OrganizationServiceProxy.getUserSettings();
+        SparkleXrm.Sdk.OrganizationServiceProxy.getUserSettings();
         var vm = new Client.TimeSheet.ViewModel.TimeSheetViewModel();
         Client.TimeSheet.View.TimeSheetView.setUpGrids(vm);
         Client.TimeSheet.View.TimeSheetView._setUpDatePicker$1(vm);
+        $('#timesheetGridContainer').resizable();
         SparkleXrm.ViewBase.registerViewModel(vm);
     });
 }
 Client.TimeSheet.View.TimeSheetView._setUpDatePicker$1 = function Client_TimeSheet_View_TimeSheetView$_setUpDatePicker$1(vm) {
     var element = $('#datepicker');
     var dateFormat = 'dd/MM/yy';
-    if (Xrm.Sdk.OrganizationServiceProxy.userSettings != null) {
-        dateFormat = Xrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring;
+    if (SparkleXrm.Sdk.OrganizationServiceProxy.userSettings != null) {
+        dateFormat = SparkleXrm.Sdk.OrganizationServiceProxy.userSettings.dateformatstring;
     }
     var options2 = {};
     options2.numberOfMonths = 3;
-    options2.firstDay = Xrm.Sdk.OrganizationServiceProxy.organizationSettings.weekstartdaycode.value;
+    options2.firstDay = SparkleXrm.Sdk.OrganizationServiceProxy.organizationSettings.weekstartdaycode.value;
     options2.dateFormat = dateFormat.replaceAll('MM', 'mm').replaceAll('yyyy', 'yy').replaceAll('M', 'm');
     options2.onSelect = function(dateText, instance) {
         var controller = Client.TimeSheet.View.TimeSheetView._sessionsGrid$1.getEditController();
@@ -3621,7 +3795,7 @@ Client.TimeSheet.View.TimeSheetView.setUpGrids = function Client_TimeSheet_View_
     SparkleXrm.GridEditor.XrmLookupEditor.bindColumn(SparkleXrm.GridEditor.GridDataViewBinder.addColumn(columns, 'Regarding', 300, 'regardingObjectId'), ss.Delegate.create(vm, vm.regardingObjectSearchCommand), 'id', 'displayName', null);
     SparkleXrm.GridEditor.XrmLookupEditor.bindColumn(SparkleXrm.GridEditor.GridDataViewBinder.addColumn(columns, 'Activity', 300, 'activity'), ss.Delegate.create(vm, vm.activitySearchCommand), 'activityid', 'subject', 'activitytypecode');
     var daysOfWeek = [ 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat' ];
-    var firstDayOfWeek = Xrm.Sdk.OrganizationServiceProxy.organizationSettings.weekstartdaycode.value;
+    var firstDayOfWeek = SparkleXrm.Sdk.OrganizationServiceProxy.organizationSettings.weekstartdaycode.value;
     SparkleXrm.GridEditor.GridDataViewBinder.addColumn(columns, daysOfWeek[firstDayOfWeek], 50, 'day0');
     SparkleXrm.GridEditor.GridDataViewBinder.addColumn(columns, daysOfWeek[firstDayOfWeek + 1], 50, 'day1');
     SparkleXrm.GridEditor.GridDataViewBinder.addColumn(columns, daysOfWeek[firstDayOfWeek + 2], 50, 'day2');
@@ -3684,7 +3858,7 @@ Client.TimeSheet.View.TimeSheetView.setUpGrids = function Client_TimeSheet_View_
         if (session.dev1_endtime != null) {
             result.valid = true;
             var valueText = value;
-            var isValid = Xrm.Sdk.DateTimeEx.getTimeDuration(newStartTime) < Xrm.Sdk.DateTimeEx.getTimeDuration(session.dev1_endtime);
+            var isValid = SparkleXrm.Sdk.DateTimeEx.getTimeDuration(newStartTime) < SparkleXrm.Sdk.DateTimeEx.getTimeDuration(session.dev1_endtime);
             result.valid = isValid;
             result.message = 'The start time must be before the end time';
         }
@@ -3700,7 +3874,7 @@ Client.TimeSheet.View.TimeSheetView.setUpGrids = function Client_TimeSheet_View_
         if (session.dev1_starttime != null) {
             result.valid = true;
             var valueText = value;
-            var isValid = Xrm.Sdk.DateTimeEx.getTimeDuration(session.dev1_starttime) < Xrm.Sdk.DateTimeEx.getTimeDuration(newEndTime);
+            var isValid = SparkleXrm.Sdk.DateTimeEx.getTimeDuration(session.dev1_starttime) < SparkleXrm.Sdk.DateTimeEx.getTimeDuration(newEndTime);
             result.valid = isValid;
             result.message = 'The end time must be after the start time';
         }
@@ -3734,9 +3908,11 @@ Client.TimeSheet.View.TimeSheetView.setUpGrids = function Client_TimeSheet_View_
 }
 
 
-ActivityPointer.registerClass('ActivityPointer', Xrm.Sdk.Entity);
-dev1_session.registerClass('dev1_session', Xrm.Sdk.Entity);
+ActivityPointer.registerClass('ActivityPointer', SparkleXrm.Sdk.Entity);
+dev1_session.registerClass('dev1_session', SparkleXrm.Sdk.Entity);
 AddressSearch.App.registerClass('AddressSearch.App');
+Client.ContactEditor.ViewModels.AssignRequest.registerClass('Client.ContactEditor.ViewModels.AssignRequest', null, Object);
+Client.ContactEditor.ViewModels.AssignResponse.registerClass('Client.ContactEditor.ViewModels.AssignResponse', null, Object);
 Client.ContactEditor.ViewModels.ContactValidation.registerClass('Client.ContactEditor.ViewModels.ContactValidation');
 Client.ContactEditor.ViewModels.ObservableContact.registerClass('Client.ContactEditor.ViewModels.ObservableContact');
 Client.ContactEditor.ViewModels.ContactsEditorViewModel.registerClass('Client.ContactEditor.ViewModels.ContactsEditorViewModel', SparkleXrm.ViewModelBase);
@@ -3752,21 +3928,23 @@ Client.DataGrouping.Views.TreeView.registerClass('Client.DataGrouping.Views.Tree
 Client.InlineSubGrids.ViewModels.ActivitySubGridViewModel.registerClass('Client.InlineSubGrids.ViewModels.ActivitySubGridViewModel', SparkleXrm.ViewModelBase);
 Client.InlineSubGrids.ViewModels.BooksCollection.registerClass('Client.InlineSubGrids.ViewModels.BooksCollection', SparkleXrm.GridEditor.DataViewBase, ss.IEnumerable);
 Client.InlineSubGrids.ViewModels.BookValidation.registerClass('Client.InlineSubGrids.ViewModels.BookValidation');
-Client.InlineSubGrids.ViewModels.Book.registerClass('Client.InlineSubGrids.ViewModels.Book', Xrm.Sdk.Entity);
+Client.InlineSubGrids.ViewModels.ContactCardViewModel.registerClass('Client.InlineSubGrids.ViewModels.ContactCardViewModel', SparkleXrm.ViewModelBase);
+Client.InlineSubGrids.ViewModels.Book.registerClass('Client.InlineSubGrids.ViewModels.Book', SparkleXrm.Sdk.Entity);
 Client.InlineSubGrids.ViewModels.SimpleEditableGridViewModel.registerClass('Client.InlineSubGrids.ViewModels.SimpleEditableGridViewModel', SparkleXrm.ViewModelBase);
 Client.Views.InlineSubGrids.ActivitySubGridView.registerClass('Client.Views.InlineSubGrids.ActivitySubGridView');
 Client.Views.InlineSubGrids.SimpleEditableGridView.registerClass('Client.Views.InlineSubGrids.SimpleEditableGridView');
+Client.InlineSubGrids.Views.ContactCardView.registerClass('Client.InlineSubGrids.Views.ContactCardView');
 Client.MultiEntitySearch.ViewModels.MultiSearchViewModel.registerClass('Client.MultiEntitySearch.ViewModels.MultiSearchViewModel', SparkleXrm.ViewModelBase);
 Client.MultiEntitySearch.ViewModels.QueryParser.registerClass('Client.MultiEntitySearch.ViewModels.QueryParser');
 Client.MultiEntitySearch.Views.MultiSearchView.registerClass('Client.MultiEntitySearch.Views.MultiSearchView');
-Client.QuoteLineItemEditor.Model.QuoteDetail.registerClass('Client.QuoteLineItemEditor.Model.QuoteDetail', Xrm.Sdk.Entity);
+Client.QuoteLineItemEditor.Model.QuoteDetail.registerClass('Client.QuoteLineItemEditor.Model.QuoteDetail', SparkleXrm.Sdk.Entity);
 Client.QuoteLineItemEditor.ViewModels.ObservableQuoteDetail.registerClass('Client.QuoteLineItemEditor.ViewModels.ObservableQuoteDetail');
 Client.QuoteLineItemEditor.ViewModels.QuoteDetailValidation.registerClass('Client.QuoteLineItemEditor.ViewModels.QuoteDetailValidation');
 Client.QuoteLineItemEditor.ViewModels.QuoteLineItemEditorViewModel.registerClass('Client.QuoteLineItemEditor.ViewModels.QuoteLineItemEditorViewModel', SparkleXrm.ViewModelBase);
 Client.QuoteLineItemEditor.Views.QuoteLineItemEditorView.registerClass('Client.QuoteLineItemEditor.Views.QuoteLineItemEditorView', SparkleXrm.ViewBase);
-Client.ScheduledJobsEditor.Model.BulkDeleteOperation.registerClass('Client.ScheduledJobsEditor.Model.BulkDeleteOperation', Xrm.Sdk.Entity);
-Client.ScheduledJobsEditor.Model.dev1_ScheduledJob.registerClass('Client.ScheduledJobsEditor.Model.dev1_ScheduledJob', Xrm.Sdk.Entity);
-Client.ScheduledJobsEditor.Model.asyncoperation.registerClass('Client.ScheduledJobsEditor.Model.asyncoperation', Xrm.Sdk.Entity);
+Client.ScheduledJobsEditor.Model.BulkDeleteOperation.registerClass('Client.ScheduledJobsEditor.Model.BulkDeleteOperation', SparkleXrm.Sdk.Entity);
+Client.ScheduledJobsEditor.Model.dev1_ScheduledJob.registerClass('Client.ScheduledJobsEditor.Model.dev1_ScheduledJob', SparkleXrm.Sdk.Entity);
+Client.ScheduledJobsEditor.Model.asyncoperation.registerClass('Client.ScheduledJobsEditor.Model.asyncoperation', SparkleXrm.Sdk.Entity);
 Client.ScheduledJobsEditor.ViewModels.ScheduledJob.registerClass('Client.ScheduledJobsEditor.ViewModels.ScheduledJob');
 Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel.registerClass('Client.ScheduledJobsEditor.ViewModels.ScheduledJobsEditorViewModel', SparkleXrm.ViewModelBase);
 Client.ScheduledJobsEditor.ViewModels.PendingDelete.registerClass('Client.ScheduledJobsEditor.ViewModels.PendingDelete');
@@ -3774,13 +3952,13 @@ Client.ScheduledJobsEditor.ViewModels.RecurranceFrequencyNames.registerClass('Cl
 Client.ScheduledJobsEditor.ViewModels.DayNames.registerClass('Client.ScheduledJobsEditor.ViewModels.DayNames');
 Client.ScheduledJobsEditor.ViewModels.RecurrancePatternMapper.registerClass('Client.ScheduledJobsEditor.ViewModels.RecurrancePatternMapper');
 Client.ScheduledJobsEditor.Views.ScheduledJobsEditorView.registerClass('Client.ScheduledJobsEditor.Views.ScheduledJobsEditorView', SparkleXrm.ViewBase);
-Client.ContactEditor.Model.Contact.registerClass('Client.ContactEditor.Model.Contact', Xrm.Sdk.Entity);
+Client.ContactEditor.Model.Contact.registerClass('Client.ContactEditor.Model.Contact', SparkleXrm.Sdk.Entity);
 Client.Views.ContactEditorView.registerClass('Client.Views.ContactEditorView', SparkleXrm.ViewBase);
 Client.TimeSheet.Model.Queries.registerClass('Client.TimeSheet.Model.Queries');
 TimeSheet.Client.ViewModel.ObservableActivityPointer.registerClass('TimeSheet.Client.ViewModel.ObservableActivityPointer');
 TimeSheet.Client.ViewModel.SessionVM.registerClass('TimeSheet.Client.ViewModel.SessionVM');
 TimeSheet.Client.ViewModel.StartStopSessionViewModel.registerClass('TimeSheet.Client.ViewModel.StartStopSessionViewModel', SparkleXrm.ViewModelBase);
-Client.TimeSheet.ViewModel.DayEntry.registerClass('Client.TimeSheet.ViewModel.DayEntry');
+Client.TimeSheet.ViewModel.DayEntry.registerClass('Client.TimeSheet.ViewModel.DayEntry', SparkleXrm.Sdk.Entity);
 Client.TimeSheet.ViewModel.DaysViewModel.registerClass('Client.TimeSheet.ViewModel.DaysViewModel', SparkleXrm.GridEditor.DataViewBase);
 Client.TimeSheet.ViewModel.SessionsViewModel.registerClass('Client.TimeSheet.ViewModel.SessionsViewModel', SparkleXrm.GridEditor.DataViewBase);
 Client.TimeSheet.ViewModel.TimeSheetViewModel.registerClass('Client.TimeSheet.ViewModel.TimeSheetViewModel', SparkleXrm.ViewModelBase);
@@ -3792,6 +3970,7 @@ dev1_session.entityLogicalName = 'dev1_session';
 dev1_session.entityTypeCode = 10000;
 (function () {
 })();
+Client.InlineSubGrids.Views.ContactCardView._wall = null;
 Client.ScheduledJobsEditor.Model.BulkDeleteOperation.entityLogicalName = 'bulkdeleteoperation';
 Client.ScheduledJobsEditor.Model.dev1_ScheduledJob.entityLogicalName = 'dev1_scheduledjob';
 Client.ScheduledJobsEditor.Model.asyncoperation.entityLogicalName = 'asyncoperation';
@@ -3818,45 +3997,4 @@ Client.TimeSheet.View.TimeSheetView._sessionsGrid$1 = null;
 Client.TimeSheet.View.TimeSheetView._startDaysColumnIndex$1 = 4;
 })(window.xrmjQuery);
 
-});
 
-
-function waitForScripts(name, scriptNames, callback) {
-    var hasLoaded = false;
-    window._loadedScripts = window._loadedScripts || [];
-    function checkScripts() {
-        var allLoaded = true;
-        for (var i = 0; i < scriptNames.length; i++) {
-            var hasLoaded = true;
-            var script = scriptNames[i];
-            switch (script) {
-                case "mscorlib":
-                    hasLoaded = typeof (window.ss) != "undefined";
-                    break;
-                case "jquery":
-                    hasLoaded = typeof (window.xrmjQuery) != "undefined";
-                    break;
-				 case "jquery-ui":
-                    hasLoaded = typeof (window.xrmjQuery.ui) != "undefined";
-                    break;
-                default:
-                    hasLoaded = window._loadedScripts[script];
-                    break;
-            }
-
-            allLoaded = allLoaded && hasLoaded;
-            if (!allLoaded) {
-                setTimeout(checkScripts, 10);
-                break;
-            }
-        }
-
-        if (allLoaded) {
-            callback();
-            window._loadedScripts[name] = true;
-        }
-    }
-	
-	checkScripts();
-	
-}

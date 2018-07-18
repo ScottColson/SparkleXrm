@@ -56,6 +56,9 @@ namespace Slick
         public Event OnKeyDown;
         public Event OnClick;
         public Event OnDblClick;
+        public Event OnHeaderClick;
+        public Event OnHeaderCellRendered;
+        public Event OnBeforeHeaderCellDestroy;
         //public Event OnRowsChanged;
         #endregion
 
@@ -142,6 +145,15 @@ namespace Slick
             // Returns the associated dataview
             return null;
         }
+        public void SetSortColumn(string fieldId, bool ascending)
+        {
+
+        }
+        public SortColData[] GetSortColumns()
+        {
+            return null;
+        }
+
         #endregion
 
     }

@@ -42,6 +42,8 @@
     <Compile Include="App.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ContactEditor\ViewModels\AssignRequest.cs" />
+    <Compile Include="ContactEditor\ViewModels\AssignResponse.cs" />
     <Compile Include="ContactEditor\ViewModels\ContactValidation.cs" />
     <Compile Include="ContactEditor\ViewModels\ObservableEntities.cs" />
     <Compile Include="DataGrouping\ViewModels\DataGroupingViewModel.cs" />
@@ -53,8 +55,10 @@
     <Compile Include="InlineSubGrids\ViewModels\ActivitySubGridViewModel.cs" />
     <Compile Include="InlineSubGrids\ViewModels\BooksCollection.cs" />
     <Compile Include="InlineSubGrids\ViewModels\BookValidation.cs" />
+    <Compile Include="InlineSubGrids\ViewModels\ContactCardViewModel.cs" />
     <Compile Include="InlineSubGrids\ViewModels\SimpleEditableGridViewModel.cs" />
     <Compile Include="InlineSubGrids\Views\ActivitySubGridView.cs" />
+    <Compile Include="InlineSubGrids\Views\ContactCardView.cs" />
     <Compile Include="InlineSubGrids\Views\SimpleEditableGridView.cs" />
     <Compile Include="MultiEntitySearch\ViewModels\MultiSearchViewModel.cs" />
     <Compile Include="MultiEntitySearch\ViewModels\QueryParser.cs" />

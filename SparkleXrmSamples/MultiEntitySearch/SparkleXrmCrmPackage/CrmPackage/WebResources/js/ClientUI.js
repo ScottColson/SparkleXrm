@@ -11,6 +11,8 @@ Type.registerNamespace('SparkleXrm.GridEditor');
 // SparkleXrm.GridEditor.VirtualPagedEntityDataViewModel
 
 SparkleXrm.GridEditor.VirtualPagedEntityDataViewModel = function SparkleXrm_GridEditor_VirtualPagedEntityDataViewModel(pageSize, entityType, lazyLoadPages) {
+    this._pendingRefresh$2 = [];
+    this._pagesLoaded$2 = [];
     SparkleXrm.GridEditor.VirtualPagedEntityDataViewModel.initializeBase(this, [ pageSize, entityType, lazyLoadPages ]);
     this._entityType = entityType;
     this._lazyLoadPages = lazyLoadPages;
@@ -23,27 +25,35 @@ SparkleXrm.GridEditor.VirtualPagedEntityDataViewModel = function SparkleXrm_Grid
     this.paging.toRecord = 0;
 }
 SparkleXrm.GridEditor.VirtualPagedEntityDataViewModel.prototype = {
-    _pageLoaded$2: 0,
     _batchSize$2: 10,
-    _suspendRefresh$2: false,
     
     getLength: function SparkleXrm_GridEditor_VirtualPagedEntityDataViewModel$getLength() {
         return this.paging.totalRows;
     },
     
     getItem: function SparkleXrm_GridEditor_VirtualPagedEntityDataViewModel$getItem(index) {
-        if ((this.paging.totalRows > 0) && (index > ((this._pageLoaded$2 + 1) * this.paging.pageSize)) && (index <= this.paging.totalRows)) {
-            this._pageLoaded$2++;
-            this.paging.pageNum = this._pageLoaded$2;
-            this.refresh();
-            console.log(String.format('{0} {1}', index, this._pageLoaded$2));
+        var requestedPage = Math.floor(index / this.paging.pageSize);
+        if ((this.paging.totalRows > 0) && (this._pagesLoaded$2[requestedPage] == null)) {
+            if (this._suspendRefresh) {
+                var singlePageIncrement = true;
+                if (this._pendingRefresh$2.length > 0) {
+                    singlePageIncrement = Math.abs(this._pendingRefresh$2.peek() - requestedPage) > 3;
+                }
+                if (!this._pendingRefresh$2.contains(requestedPage)) {
+                    this._pendingRefresh$2.push(requestedPage);
+                }
+            }
+            else {
+                this.paging.pageNum = requestedPage;
+                this.refresh();
+            }
         }
         return this._data[index];
     },
     
     reset: function SparkleXrm_GridEditor_VirtualPagedEntityDataViewModel$reset() {
         SparkleXrm.GridEditor.VirtualPagedEntityDataViewModel.callBaseMethod(this, 'reset');
-        this._pageLoaded$2 = 0;
+        this._pagesLoaded$2 = [];
         this.getPagingInfo().pageNum = 0;
         this.getPagingInfo().totalRows = 0;
         this.getPagingInfo().fromRecord = 0;
@@ -52,19 +62,26 @@ SparkleXrm.GridEditor.VirtualPagedEntityDataViewModel.prototype = {
     },
     
     refresh: function SparkleXrm_GridEditor_VirtualPagedEntityDataViewModel$refresh() {
-        this._suspendRefresh$2 = true;
-        var firstRowIndex = this.paging.pageNum * this.paging.pageSize;
+        var requestedPage = this.paging.pageNum;
+        var pageLoadState = this._pagesLoaded$2[requestedPage];
+        if (!!this._suspendRefresh) {
+            return;
+        }
+        this._suspendRefresh = true;
         var allDataDeleted = (!this.paging.totalRows) && (this.deleteData != null) && (this.deleteData.length > 0);
         var rows = [];
-        if (firstRowIndex >= this._pageLoaded$2) {
+        var firstRowIndex = requestedPage * this.paging.pageSize;
+        if (pageLoadState !== 1 && pageLoadState !== 2) {
+            if (String.isNullOrEmpty(this._fetchXml)) {
+                this._suspendRefresh = false;
+                return;
+            }
+            this._pagesLoaded$2[requestedPage] = 1;
             this.onDataLoading.notify(null, null, null);
             var orderBy = this.applySorting();
             var fetchPageSize;
             fetchPageSize = this.paging.pageSize;
-            if (String.isNullOrEmpty(this._fetchXml)) {
-                return;
-            }
-            var parameterisedFetchXml = String.format(this._fetchXml, fetchPageSize, Xrm.Sdk.XmlHelper.encode(this.paging.extraInfo), this.paging.pageNum + 1, orderBy);
+            var parameterisedFetchXml = String.format(this._fetchXml, fetchPageSize, Xrm.Sdk.XmlHelper.encode(this.paging.extraInfo), requestedPage + 1, orderBy);
             Xrm.Sdk.OrganizationServiceProxy.beginRetrieveMultiple(parameterisedFetchXml, ss.Delegate.create(this, function(result) {
                 try {
                     var results = Xrm.Sdk.OrganizationServiceProxy.endRetrieveMultiple(result, this._entityType);
@@ -81,9 +98,7 @@ SparkleXrm.GridEditor.VirtualPagedEntityDataViewModel.prototype = {
                     else {
                         this._data = results.get_entities().items();
                     }
-                    var args = {};
-                    args.from = firstRowIndex;
-                    args.to = firstRowIndex + this.paging.pageSize - 1;
+                    this._pagesLoaded$2[requestedPage] = 2;
                     this.paging.totalRows = results.get_totalRecordCount();
                     this.paging.extraInfo = results.get_pagingCookie();
                     this.paging.fromRecord = firstRowIndex + 1;
@@ -95,17 +110,28 @@ SparkleXrm.GridEditor.VirtualPagedEntityDataViewModel.prototype = {
                         this._itemAdded = false;
                     }
                     this.onPagingInfoChanged.notify(this.getPagingInfo(), null, null);
+                    var args = {};
+                    args.from = firstRowIndex;
+                    args.to = firstRowIndex + this.paging.pageSize - 1;
                     this.onDataLoaded.notify(args, null, null);
+                    this._finishSuspend$2();
                 }
                 catch (ex) {
-                    this.errorMessage = ex.message;
+                    var quickFindLimit = ex.message.indexOf('QuickFindQueryRecordLimit') > -1;
+                    this._pagesLoaded$2[requestedPage] = 2;
+                    this.paging.totalRows = 5001;
+                    this.onPagingInfoChanged.notify(this.getPagingInfo(), null, null);
                     var args = {};
-                    args.errorMessage = ex.message;
+                    if (!quickFindLimit) {
+                        this.errorMessage = ex.message;
+                        args.errorMessage = ex.message;
+                    }
                     this.onDataLoaded.notify(args, null, null);
+                    this._finishSuspend$2();
                 }
             }));
         }
-        else {
+        else if (pageLoadState === 2) {
             var args = {};
             args.from = 0;
             args.to = this.paging.pageSize - 1;
@@ -114,11 +140,16 @@ SparkleXrm.GridEditor.VirtualPagedEntityDataViewModel.prototype = {
             this.onPagingInfoChanged.notify(this.getPagingInfo(), null, null);
             this.onDataLoaded.notify(args, null, null);
             this._itemAdded = false;
+            this._finishSuspend$2();
         }
-        var refreshArgs = {};
-        refreshArgs.rows = rows;
-        this.onRowsChanged.notify(refreshArgs, null, this);
-        this._suspendRefresh$2 = false;
+    },
+    
+    _finishSuspend$2: function SparkleXrm_GridEditor_VirtualPagedEntityDataViewModel$_finishSuspend$2() {
+        this._suspendRefresh = false;
+        if (this._pendingRefresh$2.length > 0) {
+            this.paging.pageNum = this._pendingRefresh$2.pop();
+            this.refresh();
+        }
     }
 }
 
@@ -237,7 +268,15 @@ Client.MultiEntitySearch.ViewModels.MultiSearchViewModel2013 = function Client_M
     this.searchTerm = ko.observable();
     this.config = ko.observableArray();
     Client.MultiEntitySearch.ViewModels.MultiSearchViewModel2013.initializeBase(this);
-    Xrm.Sdk.OrganizationServiceProxy.withCredentials = true;
+    var throttledSearchTermObservable = {};
+    throttledSearchTermObservable.owner = this;
+    throttledSearchTermObservable.read = ss.Delegate.create(this, function() {
+        return this.searchTerm();
+    });
+    this.throttledSearchTerm = ko.dependentObservable(throttledSearchTermObservable).extend({ throttle: 400 });
+    this.throttledSearchTerm.subscribe(ss.Delegate.create(this, function(search) {
+        this.searchCommand();
+    }));
     var dataConfig = Xrm.PageEx.getWebResourceData();
     this._queryQuickSearchEntities$1();
     var views = this._getViewQueries$1();
@@ -258,6 +297,7 @@ Client.MultiEntitySearch.ViewModels.MultiSearchViewModel2013 = function Client_M
     this._parser$1.queryDisplayNames();
 }
 Client.MultiEntitySearch.ViewModels.MultiSearchViewModel2013.prototype = {
+    throttledSearchTerm: null,
     _parser$1: null,
     _entityMetadata$1: null,
     _entityTypeNames$1: null,
@@ -315,7 +355,8 @@ Client.MultiEntitySearch.ViewModels.MultiSearchViewModel2013.prototype = {
     getResultLabel: function Client_MultiEntitySearch_ViewModels_MultiSearchViewModel2013$getResultLabel(config) {
         var label = this._entityMetadata$1[config.rootEntity.logicalName].displayCollectionName.userLocalizedLabel.label;
         var totalRows = config.dataView.getLength();
-        return label + '(' + totalRows.toString() + ')';
+        var totalRowLabel = (totalRows > 5000) ? '5000+' : totalRows.toString();
+        return label + ' (' + totalRowLabel + ')';
     },
     
     getEntityDisplayName: function Client_MultiEntitySearch_ViewModels_MultiSearchViewModel2013$getEntityDisplayName(index) {
@@ -332,6 +373,10 @@ Client.MultiEntitySearch.ViewModels.MultiSearchViewModel2013.prototype = {
     },
     
     searchCommand: function Client_MultiEntitySearch_ViewModels_MultiSearchViewModel2013$searchCommand() {
+        var searchTermText = this.searchTerm();
+        if (String.isNullOrEmpty(searchTermText)) {
+            return;
+        }
         var $enum1 = ss.IEnumerator.getEnumerator(this.config());
         while ($enum1.moveNext()) {
             var config = $enum1.current;
@@ -339,7 +384,7 @@ Client.MultiEntitySearch.ViewModels.MultiSearchViewModel2013.prototype = {
             config.dataView.set_fetchXml(null);
             config.dataView.get_data().clear();
             config.dataView.refresh();
-            config.dataView.set_fetchXml(this._parser$1.getFetchXmlForQuery(config, '%' + this.searchTerm() + '%'));
+            config.dataView.set_fetchXml(this._parser$1.getFetchXmlForQuery(config, '%' + searchTermText + '%'));
             if (config.rootEntity.primaryImageAttribute != null) {
                 var startofAttributes = config.dataView.get_fetchXml().indexOf('<attribute ');
                 config.dataView.set_fetchXml(config.dataView.get_fetchXml().substr(0, startofAttributes) + '<attribute name="' + config.rootEntity.primaryImageAttribute + "_url\" alias='card_image_url'/>" + config.dataView.get_fetchXml().substr(startofAttributes));
@@ -502,6 +547,18 @@ Client.MultiEntitySearch.ViewModels.QueryParser.prototype = {
             }
         }));
         querySettings.rootEntity = rootEntity;
+        var conditions = fetchElement.find("filter[isquickfindfields='1']");
+        conditions.first().children().each(function(index, element) {
+            logicalName = element.getAttribute('attribute').toString();
+            var e = $(element);
+            var p = e.parents('link-entity');
+            if (!Object.keyExists(querySettings.rootEntity.attributes, logicalName)) {
+                var attribute = {};
+                attribute.logicalName = logicalName;
+                attribute.columns = [];
+                querySettings.rootEntity.attributes[logicalName] = attribute;
+            }
+        });
     },
     
     getFetchXmlForQuery: function Client_MultiEntitySearch_ViewModels_QueryParser$getFetchXmlForQuery(config, searchTerm) {
@@ -560,6 +617,12 @@ Client.MultiEntitySearch.Views.MultiSearchView2013 = function Client_MultiEntity
 Client.MultiEntitySearch.Views.MultiSearchView2013.init = function Client_MultiEntitySearch_Views_MultiSearchView2013$init() {
     var vm = new Client.MultiEntitySearch.ViewModels.MultiSearchViewModel2013();
     var searches = vm.config();
+    var searchResultsDiv = $('#searchResults');
+    $(window).resize(function(e) {
+        Client.MultiEntitySearch.Views.MultiSearchView2013._onResizeSearchResults(searchResultsDiv);
+    });
+    Client.MultiEntitySearch.Views.MultiSearchView2013._onResizeSearchResults(searchResultsDiv);
+    $('.sparkle-xrm').bind('onmousewheel mousewheel DOMMouseScroll', Client.MultiEntitySearch.Views.MultiSearchView2013._onSearchResultsMouseScroll);
     var i = 0;
     var $enum1 = ss.IEnumerator.getEnumerator(searches);
     while ($enum1.moveNext()) {
@@ -567,6 +630,7 @@ Client.MultiEntitySearch.Views.MultiSearchView2013.init = function Client_MultiE
         var cardColumn = [{ id: 'card-column', options: config.columns, name: 'Name', width: 290, cssClass: 'card-column-cell' }];
         cardColumn[0].formatter = Client.MultiEntitySearch.Views.MultiSearchView2013.renderCardColumnCell;
         cardColumn[0].dataType = 'PrimaryNameLookup';
+        config.columns[0].dataType = 'PrimaryNameLookup';
         var dataViewBinder = new SparkleXrm.GridEditor.GridDataViewBinder();
         var gridOptions = {};
         gridOptions.enableCellNavigation = true;
@@ -582,12 +646,38 @@ Client.MultiEntitySearch.Views.MultiSearchView2013.init = function Client_MultiE
         var gridId = 'grid' + i.toString() + 'container';
         var dataView = config.dataView;
         var grid = new Slick.Grid('#' + gridId, dataView, cardColumn, gridOptions);
+        Client.MultiEntitySearch.Views.MultiSearchView2013.grids[i] = grid;
         Client.MultiEntitySearch.Views.MultiSearchView2013._addResizeEventHandlers(grid, gridId);
         dataViewBinder.dataBindEvents(grid, dataView, gridId);
         dataViewBinder.bindClickHandler(grid);
         i++;
     }
     SparkleXrm.ViewBase.registerViewModel(vm);
+}
+Client.MultiEntitySearch.Views.MultiSearchView2013._onResizeSearchResults = function Client_MultiEntitySearch_Views_MultiSearchView2013$_onResizeSearchResults(searchResultsDiv) {
+    var height = $(window).height();
+    searchResultsDiv.height(height - 30);
+}
+Client.MultiEntitySearch.Views.MultiSearchView2013._onSearchResultsMouseScroll = function Client_MultiEntitySearch_Views_MultiSearchView2013$_onSearchResultsMouseScroll(e) {
+    var wheelDelta = e.originalEvent.wheelDelta;
+    if (wheelDelta == null) {
+        wheelDelta = e.originalEvent.wheelDeltaY;
+    }
+    if (wheelDelta == null) {
+        wheelDelta = e.originalEvent.detail * -30;
+    }
+    if (wheelDelta == null) {
+        wheelDelta = e.originalEvent.delta * -30;
+    }
+    var target = $(e.target);
+    var gridContainer = target.closest('.slick-cell');
+    if (gridContainer.length > 0) {
+        return;
+    }
+    var searchResultsDiv = $('#searchResults');
+    var scrollLeft = searchResultsDiv.scrollLeft();
+    searchResultsDiv.scrollLeft(scrollLeft -= wheelDelta);
+    e.preventDefault();
 }
 Client.MultiEntitySearch.Views.MultiSearchView2013._addResizeEventHandlers = function Client_MultiEntitySearch_Views_MultiSearchView2013$_addResizeEventHandlers(grid, containerName) {
     $(window).resize(function(e) {
@@ -599,7 +689,7 @@ Client.MultiEntitySearch.Views.MultiSearchView2013._addResizeEventHandlers = fun
 }
 Client.MultiEntitySearch.Views.MultiSearchView2013._resizeGrid = function Client_MultiEntitySearch_Views_MultiSearchView2013$_resizeGrid(grid, containerName) {
     var height = $(window).height();
-    $('#' + containerName).height(height - 60);
+    $('#' + containerName).height(height - 85);
     grid.resizeCanvas();
 }
 Client.MultiEntitySearch.Views.MultiSearchView2013.renderCardColumnCell = function Client_MultiEntitySearch_Views_MultiSearchView2013$renderCardColumnCell(row, cell, value, columnDef, dataContext) {
@@ -649,6 +739,7 @@ Client.MultiEntitySearch.ViewModels.MultiSearchViewModel2013.registerClass('Clie
 Client.MultiEntitySearch.ViewModels.QueryParser.registerClass('Client.MultiEntitySearch.ViewModels.QueryParser');
 Client.MultiEntitySearch.Views.MultiSearchView.registerClass('Client.MultiEntitySearch.Views.MultiSearchView');
 Client.MultiEntitySearch.Views.MultiSearchView2013.registerClass('Client.MultiEntitySearch.Views.MultiSearchView2013');
+Client.MultiEntitySearch.Views.MultiSearchView2013.grids = [];
 })(window.xrmjQuery);
 
 });
